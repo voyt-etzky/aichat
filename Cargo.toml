@@ -11,6 +11,9 @@ repository = "https://github.com/sigoden/aichat"
 categories = ["command-line-utilities"]
 keywords = ["chatgpt", "llm", "cli", "ai", "repl"]
 
+[lints.clippy]
+double_must_use = "allow"
+
 [dependencies]
 anyhow = "1.0.69"
 bytes = "1.4.0"

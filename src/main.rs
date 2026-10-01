@@ -1,3 +1,5 @@
+#![allow(clippy::double_must_use)]
+
 mod cli;
 mod client;
 mod config;
