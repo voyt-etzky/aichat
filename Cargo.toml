@@ -1,13 +1,13 @@
 [package]
 name = "aichat"
-version = "0.30.0"
+version = "0.31.0-voyt.1"
 rust-version = "1.80"
 edition = "2021"
 authors = ["sigoden <sigoden@gmail.com>"]
 description = "All-in-one LLM CLI Tool"
 license = "MIT OR Apache-2.0"
-homepage = "https://github.com/sigoden/aichat"
-repository = "https://github.com/sigoden/aichat"
+homepage = "https://github.com/voyt-etzky/aichat"
+repository = "https://github.com/voyt-etzky/aichat"
 categories = ["command-line-utilities"]
 keywords = ["chatgpt", "llm", "cli", "ai", "repl"]
 
