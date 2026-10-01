@@ -104,6 +104,7 @@ pub struct Config {
     pub model_id: String,
     pub temperature: Option<f64>,
     pub top_p: Option<f64>,
+    pub reasoning_effort: Option<String>,
 
     pub dry_run: bool,
     pub stream: bool,
@@ -180,6 +181,7 @@ impl Default for Config {
             model_id: Default::default(),
             temperature: None,
             top_p: None,
+            reasoning_effort: None,
 
             dry_run: false,
             stream: true,
@@ -582,6 +584,17 @@ impl Config {
             ("model", role.model().id()),
             ("temperature", format_option_value(&role.temperature())),
             ("top_p", format_option_value(&role.top_p())),
+            (
+                "reasoning_effort",
+                self.reasoning_effort
+                    .clone()
+                    .or_else(|| {
+                        role.model()
+                            .reasoning_effort()
+                            .map(|v| format!("{v} (current model)"))
+                    })
+                    .unwrap_or_else(|| "null".into()),
+            ),
             ("use_tools", format_option_value(&role.use_tools())),
             (
                 "max_output_tokens",
@@ -641,6 +654,14 @@ impl Config {
             "top_p" => {
                 let value = parse_value(value)?;
                 config.write().set_top_p(value);
+            }
+            "reasoning_effort" => {
+                let value = if value == "null" {
+                    None
+                } else {
+                    Some(value.to_string())
+                };
+                config.write().set_reasoning_effort(value);
             }
             "use_tools" => {
                 let value = parse_value(value)?;
@@ -775,6 +796,10 @@ impl Config {
             Some(role_like) => role_like.set_top_p(value),
             None => self.top_p = value,
         }
+    }
+
+    pub fn set_reasoning_effort(&mut self, value: Option<String>) {
+        self.reasoning_effort = value;
     }
 
     pub fn set_use_tools(&mut self, value: Option<String>) {
@@ -1582,7 +1607,7 @@ impl Config {
         let path = Self::macro_file(name);
         let err = || format!("Failed to load macro '{name}' at '{}'", path.display());
         let content = read_to_string(&path).with_context(err)?;
-        let value: Macro = serde_yaml::from_str(&content).with_context(err)?;
+        let value: Macro = serde_yml::from_str(&content).with_context(err)?;
         Ok(value)
     }
 
@@ -1779,6 +1804,7 @@ impl Config {
                     let mut values = vec![
                         "temperature",
                         "top_p",
+                        "reasoning_effort",
                         "use_tools",
                         "save_session",
                         "compress_threshold",
@@ -1804,6 +1830,12 @@ impl Config {
             };
         } else if cmd == ".set" && args.len() == 2 {
             let candidates = match args[0] {
+                "reasoning_effort" => vec![
+                    "null".to_string(),
+                    "low".to_string(),
+                    "medium".to_string(),
+                    "high".to_string(),
+                ],
                 "max_output_tokens" => match self.current_model().max_output_tokens() {
                     Some(v) => vec![v.to_string()],
                     None => vec![],
@@ -1871,14 +1903,14 @@ impl Config {
             .await
             .with_context(|| format!("Failed to fetch '{url}'"))?;
         println!("✓ Fetched '{url}'");
-        let list = serde_yaml::from_str::<Vec<ProviderModels>>(&content)
+        let list = serde_yml::from_str::<Vec<ProviderModels>>(&content)
             .with_context(|| "Failed to parse models.yaml")?;
         let models_override = ModelsOverride {
             version: env!("CARGO_PKG_VERSION").to_string(),
             list,
         };
         let models_override_data =
-            serde_yaml::to_string(&models_override).with_context(|| "Failed to serde {}")?;
+            serde_yml::to_string(&models_override).with_context(|| "Failed to serde {}")?;
 
         let model_override_path = Self::models_override_file();
         ensure_parent_exists(&model_override_path)?;
@@ -1888,7 +1920,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn loal_models_override() -> Result<Vec<ProviderModels>> {
+    pub fn load_models_override() -> Result<Vec<ProviderModels>> {
         let model_override_path = Self::models_override_file();
         let err = || {
             format!(
@@ -1897,7 +1929,7 @@ impl Config {
             )
         };
         let content = read_to_string(&model_override_path).with_context(err)?;
-        let models_override: ModelsOverride = serde_yaml::from_str(&content).with_context(err)?;
+        let models_override: ModelsOverride = serde_yml::from_str(&content).with_context(err)?;
         if models_override.version != env!("CARGO_PKG_VERSION") {
             bail!("Incompatible version")
         }
@@ -2201,7 +2233,7 @@ impl Config {
     fn load_from_file(config_path: &Path) -> Result<Self> {
         let err = || format!("Failed to load config at '{}'", config_path.display());
         let content = read_to_string(config_path).with_context(err)?;
-        let config: Self = serde_yaml::from_str(&content)
+        let config: Self = serde_yml::from_str(&content)
             .map_err(|err| {
                 let err_msg = err.to_string();
                 let err_msg = if err_msg.starts_with(&format!("{CLIENTS_FIELD}: ")) {
@@ -2254,6 +2286,9 @@ impl Config {
         }
         if let Some(v) = read_env_value::<f64>(&get_env_name("top_p")) {
             self.top_p = v;
+        }
+        if let Some(v) = read_env_value::<String>(&get_env_name("reasoning_effort")) {
+            self.reasoning_effort = v;
         }
 
         if let Some(Some(v)) = read_env_bool(&get_env_name("dry_run")) {
@@ -2636,7 +2671,7 @@ async fn create_config_file(config_path: &Path) -> Result<()> {
     config["model"] = model.into();
     config[CLIENTS_FIELD] = clients_config;
 
-    let config_data = serde_yaml::to_string(&config).with_context(|| "Failed to create config")?;
+    let config_data = serde_yml::to_string(&config).with_context(|| "Failed to create config")?;
     let config_data = format!(
         "# see https://github.com/sigoden/aichat/blob/main/config.example.yaml\n\n{config_data}"
     );

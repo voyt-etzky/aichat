@@ -230,6 +230,7 @@ pub fn openai_build_chat_completions_body(data: ChatCompletionsData, model: &Mod
         top_p,
         functions,
         stream,
+        reasoning_effort,
     } = data;
 
     let messages_len = messages.len();
@@ -329,6 +330,9 @@ pub fn openai_build_chat_completions_body(data: ChatCompletionsData, model: &Mod
     if stream {
         body["stream"] = true.into();
     }
+    if let Some(effort) = reasoning_effort {
+        body["reasoning_effort"] = effort.into();
+    }
     if let Some(functions) = functions {
         body["tools"] = functions
             .iter()
@@ -404,5 +408,42 @@ fn normalize_function_id(value: &str) -> Option<String> {
         None
     } else {
         Some(value.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_openai_reasoning_effort_in_body() {
+        let model = Model::new("openai", "gpt-6-sol");
+        let data = ChatCompletionsData {
+            messages: vec![Message::new(
+                MessageRole::User,
+                MessageContent::Text("hi".into()),
+            )],
+            temperature: Some(0.7),
+            top_p: None,
+            functions: None,
+            stream: false,
+            reasoning_effort: Some("high".to_string()),
+        };
+        let body = openai_build_chat_completions_body(data, &model);
+        assert_eq!(body["reasoning_effort"], "high");
+
+        let data2 = ChatCompletionsData {
+            messages: vec![Message::new(
+                MessageRole::User,
+                MessageContent::Text("hi".into()),
+            )],
+            temperature: Some(0.7),
+            top_p: None,
+            functions: None,
+            stream: false,
+            reasoning_effort: None,
+        };
+        let body2 = openai_build_chat_completions_body(data2, &model);
+        assert!(body2.get("reasoning_effort").is_none());
     }
 }

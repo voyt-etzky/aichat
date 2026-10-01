@@ -163,6 +163,7 @@ pub fn claude_build_chat_completions_body(
         top_p,
         functions,
         stream,
+        reasoning_effort,
     } = data;
 
     let system_message = extract_system_message(&mut messages);
@@ -282,6 +283,25 @@ pub fn claude_build_chat_completions_body(
     if stream {
         body["stream"] = true.into();
     }
+    if let Some(effort) = reasoning_effort {
+        let budget = match effort.to_lowercase().as_str() {
+            "low" => 4000,
+            "high" => 32000,
+            s => s.parse::<u32>().unwrap_or(16000),
+        };
+        body["thinking"] = json!({
+            "type": "enabled",
+            "budget_tokens": budget,
+        });
+        if let Some(map) = body.as_object_mut() {
+            map.remove("temperature");
+            map.remove("top_p");
+        }
+        let current_max = body.get("max_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+        if current_max <= budget as u64 {
+            body["max_tokens"] = ((budget as u64) + 8000).into();
+        }
+    }
     if let Some(functions) = functions {
         body["tools"] = functions
             .iter()
@@ -350,4 +370,30 @@ pub fn claude_extract_chat_completions(data: &Value) -> Result<ChatCompletionsOu
         output_tokens: data["usage"]["output_tokens"].as_u64(),
     };
     Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_claude_reasoning_effort_mapping() {
+        let model = Model::new("claude", "claude-sonnet-5.5");
+        let data = ChatCompletionsData {
+            messages: vec![Message::new(
+                MessageRole::User,
+                MessageContent::Text("hi".into()),
+            )],
+            temperature: Some(0.7),
+            top_p: Some(0.9),
+            functions: None,
+            stream: false,
+            reasoning_effort: Some("high".to_string()),
+        };
+        let body = claude_build_chat_completions_body(data, &model).unwrap();
+        assert_eq!(body["thinking"]["type"], "enabled");
+        assert_eq!(body["thinking"]["budget_tokens"], 32000);
+        assert!(body.get("temperature").is_none());
+        assert!(body.get("top_p").is_none());
+    }
 }

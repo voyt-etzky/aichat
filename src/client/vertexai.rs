@@ -3,6 +3,8 @@ use super::claude::*;
 use super::openai::*;
 use super::*;
 
+use crate::utils::strip_think_tag;
+
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{Duration, Utc};
 use reqwest::{Client as ReqwestClient, RequestBuilder};
@@ -316,6 +318,7 @@ pub fn gemini_build_chat_completions_body(
         top_p,
         functions,
         stream: _,
+        reasoning_effort,
     } = data;
 
     let system_message = extract_system_message(&mut messages);
@@ -330,6 +333,10 @@ pub fn gemini_build_chat_completions_body(
                 _ => "model",
             };
                match content {
+                    MessageContent::Text(text) if role == "model" => vec![json!({
+                        "role": role,
+                        "parts": [{ "text": strip_think_tag(&text) }]
+                    })],
                     MessageContent::Text(text) => vec![json!({
                         "role": role,
                         "parts": [{ "text": text }]
@@ -401,6 +408,16 @@ pub fn gemini_build_chat_completions_body(
     }
     if let Some(v) = top_p {
         body["generationConfig"]["topP"] = v.into();
+    }
+    if let Some(effort) = reasoning_effort {
+        let budget = match effort.to_lowercase().as_str() {
+            "low" => 1024,
+            "high" => 24576,
+            s => s.parse::<u32>().unwrap_or(8192),
+        };
+        body["generationConfig"]["thinkingConfig"] = json!({
+            "thinkingBudget": budget,
+        });
     }
 
     if let Some(functions) = functions {

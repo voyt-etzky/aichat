@@ -203,7 +203,7 @@ impl Agent {
             .display()
             .to_string()
             .into();
-        let data = serde_yaml::to_string(&value)?;
+        let data = serde_yml::to_string(&value)?;
         Ok(data)
     }
 
@@ -396,7 +396,7 @@ impl AgentConfig {
     pub fn load(path: &Path) -> Result<Self> {
         let contents = read_to_string(path)
             .with_context(|| format!("Failed to read agent config file at '{}'", path.display()))?;
-        let config: Self = serde_yaml::from_str(&contents)
+        let config: Self = serde_yml::from_str(&contents)
             .with_context(|| format!("Failed to load agent config at '{}'", path.display()))?;
         Ok(config)
     }
@@ -453,7 +453,7 @@ impl AgentDefinition {
     pub fn load(path: &Path) -> Result<Self> {
         let contents = read_to_string(path)
             .with_context(|| format!("Failed to read agent index file at '{}'", path.display()))?;
-        let definition: Self = serde_yaml::from_str(&contents)
+        let definition: Self = serde_yml::from_str(&contents)
             .with_context(|| format!("Failed to load agent index at '{}'", path.display()))?;
         Ok(definition)
     }

@@ -14,12 +14,7 @@ where
         .iter()
         .map(|(id, vec)| {
             let (h, l) = id.split();
-            let byte_slice = unsafe {
-                std::slice::from_raw_parts(
-                    vec.as_ptr() as *const u8,
-                    vec.len() * std::mem::size_of::<f32>(),
-                )
-            };
+            let byte_slice: &[u8] = bytemuck::cast_slice(vec);
             (format!("{h}-{l}"), STANDARD.encode(byte_slice))
         })
         .collect();
@@ -51,16 +46,10 @@ where
             return Err(de::Error::custom(format!("Invalid vector at '{key}'")));
         }
 
-        let num_f32s = decoded_data.len() / std::mem::size_of::<f32>();
-
-        let mut vec_f32 = vec![0.0f32; num_f32s];
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                decoded_data.as_ptr(),
-                vec_f32.as_mut_ptr() as *mut u8,
-                decoded_data.len(),
-            );
-        }
+        let vec_f32: Vec<f32> = decoded_data
+            .chunks_exact(std::mem::size_of::<f32>())
+            .map(|chunk| f32::from_ne_bytes(chunk.try_into().unwrap()))
+            .collect();
 
         decoded_map.insert(decoded_key, vec_f32);
     }

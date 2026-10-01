@@ -23,9 +23,9 @@ use tokio::sync::mpsc::unbounded_channel;
 const MODELS_YAML: &str = include_str!("../../models.yaml");
 
 pub static ALL_PROVIDER_MODELS: LazyLock<Vec<ProviderModels>> = LazyLock::new(|| {
-    Config::loal_models_override()
+    Config::load_models_override()
         .ok()
-        .unwrap_or_else(|| serde_yaml::from_str(MODELS_YAML).unwrap())
+        .unwrap_or_else(|| serde_yml::from_str(MODELS_YAML).unwrap())
 });
 
 static EMBEDDING_MODEL_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -284,6 +284,7 @@ pub struct ChatCompletionsData {
     pub top_p: Option<f64>,
     pub functions: Option<Vec<FunctionDeclaration>>,
     pub stream: bool,
+    pub reasoning_effort: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -673,4 +674,56 @@ fn prompt_input_string(
     }
     let text = text.prompt()?;
     Ok(text)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_models_yaml_contains_new_models() {
+        let providers = &*ALL_PROVIDER_MODELS;
+        let openai = providers
+            .iter()
+            .find(|p| p.provider == "openai")
+            .expect("openai provider exists");
+        assert!(openai
+            .models
+            .iter()
+            .any(|m| m.name == "gpt-6.1-sol" && m.reasoning_effort.as_deref() == Some("medium")));
+        assert!(openai
+            .models
+            .iter()
+            .any(|m| m.name == "gpt-6-sol" && m.reasoning_effort.as_deref() == Some("medium")));
+        assert!(openai.models.iter().any(|m| m.name == "gpt-5.6-luna"));
+
+        let claude = providers
+            .iter()
+            .find(|p| p.provider == "claude")
+            .expect("claude provider exists");
+        assert!(claude.models.iter().any(|m| m.name == "claude-fable-5.1"));
+        assert!(claude
+            .models
+            .iter()
+            .any(|m| m.name == "claude-fable-5.1:thinking"
+                && m.reasoning_effort.as_deref() == Some("medium")));
+        assert!(claude.models.iter().any(|m| m.name == "claude-sonnet-5.5"));
+
+        let openrouter = providers
+            .iter()
+            .find(|p| p.provider == "openrouter")
+            .expect("openrouter provider exists");
+        assert!(openrouter
+            .models
+            .iter()
+            .any(|m| m.name == "openai/gpt-6-sol"));
+        assert!(openrouter
+            .models
+            .iter()
+            .any(|m| m.name == "anthropic/claude-sonnet-5.5"));
+        assert!(openrouter
+            .models
+            .iter()
+            .any(|m| m.name == "anthropic/claude-fable-5.1"));
+    }
 }

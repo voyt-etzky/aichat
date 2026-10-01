@@ -146,6 +146,9 @@ async fn run(config: GlobalConfig, cli: Cli, text: Option<String>) -> Result<()>
     if cli.no_stream {
         config.write().stream = false;
     }
+    if let Some(effort) = &cli.reasoning_effort {
+        config.write().reasoning_effort = Some(effort.clone());
+    }
     if cli.empty_session {
         config.write().empty_session()?;
     }
@@ -275,7 +278,7 @@ async fn shell_execute(
 
             match answer_char {
                 'e' => {
-                    debug!("{} {:?}", shell.cmd, &[&shell.arg, &eval_str]);
+                    debug!("{} {:?}", shell.cmd, [&shell.arg, &eval_str]);
                     let code = run_command(&shell.cmd, &[&shell.arg, &eval_str], None)?;
                     if code == 0 && config.read().save_shell_history {
                         let _ = append_to_shell_history(&shell.name, &eval_str, code);

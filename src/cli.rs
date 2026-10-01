@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use is_terminal::IsTerminal;
-use std::io::{stdin, Read};
+use std::io::{stdin, IsTerminal, Read};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -54,6 +53,9 @@ pub struct Cli {
     /// Turn off stream mode
     #[clap(short = 'S', long)]
     pub no_stream: bool,
+    /// Set reasoning effort (low, medium, high)
+    #[clap(long)]
+    pub reasoning_effort: Option<String>,
     /// Display the message without sending it
     #[clap(long)]
     pub dry_run: bool,

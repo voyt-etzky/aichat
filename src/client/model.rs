@@ -198,6 +198,16 @@ impl Model {
         self.data.system_prompt_prefix.as_deref()
     }
 
+    pub fn reasoning_effort(&self) -> Option<String> {
+        self.data.reasoning_effort.clone().or_else(|| {
+            self.patch()
+                .and_then(|v| v.get("body"))
+                .and_then(|v| v.get("reasoning_effort"))
+                .and_then(|v| v.as_str())
+                .map(|v| v.to_string())
+        })
+    }
+
     pub fn max_tokens_per_chunk(&self) -> Option<usize> {
         self.data.max_tokens_per_chunk
     }
@@ -323,6 +333,8 @@ pub struct ModelData {
     no_system_message: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     system_prompt_prefix: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
 
     // embedding-only properties
     #[serde(skip_serializing_if = "Option::is_none")]

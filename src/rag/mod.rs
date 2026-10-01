@@ -102,7 +102,7 @@ impl Rag {
     pub fn load(config: &GlobalConfig, name: &str, path: &Path) -> Result<Self> {
         let err = || format!("Failed to load rag '{name}' at '{}'", path.display());
         let content = fs::read_to_string(path).with_context(err)?;
-        let data: RagData = serde_yaml::from_str(&content).with_context(err)?;
+        let data: RagData = serde_yml::from_str(&content).with_context(err)?;
         Self::create(config, name, path, data)
     }
 
@@ -247,7 +247,7 @@ impl Rag {
         let path = Path::new(&self.path);
         ensure_parent_exists(path)?;
 
-        let content = serde_yaml::to_string(&self.data)
+        let content = serde_yml::to_string(&self.data)
             .with_context(|| format!("Failed to serde rag '{}'", self.name))?;
         fs::write(path, content).with_context(|| {
             format!("Failed to save rag '{}' to '{}'", self.name, path.display())
@@ -279,7 +279,7 @@ impl Rag {
             "document_paths": self.data.document_paths,
             "files": files,
         });
-        let output = serde_yaml::to_string(&data)
+        let output = serde_yml::to_string(&data)
             .with_context(|| format!("Unable to show info about rag '{}'", self.name))?;
         Ok(output)
     }
@@ -994,10 +994,7 @@ fn reciprocal_rank_fusion(
 ) -> Vec<DocumentId> {
     let rrf_k = top_k * 2;
     let mut map: IndexMap<DocumentId, f32> = IndexMap::new();
-    for (document_ids, weight) in list_of_document_ids
-        .into_iter()
-        .zip(list_of_weights.into_iter())
-    {
+    for (document_ids, weight) in list_of_document_ids.into_iter().zip(list_of_weights) {
         for (index, &item) in document_ids.iter().enumerate() {
             *map.entry(item).or_default() += (1.0 / ((rrf_k + index + 1) as f32)) * weight;
         }

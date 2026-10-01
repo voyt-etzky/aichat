@@ -3,6 +3,126 @@
 #  - https://platform.openai.com/docs/api-reference/chat
 - provider: openai
   models:
+    - name: gpt-6.1-sol
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: gpt-6-astra
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 10
+      output_price: 50
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: gpt-6-sol
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: gpt-6-luna
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 0.1
+      output_price: 0.5
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: gpt-5.6-sol
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: gpt-5.6-luna
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 0.2
+      output_price: 1.2
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: gpt-5.6-terra
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 2
+      output_price: 12
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: gpt-5.5
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 5
+      output_price: 30
+      supports_vision: true
+      supports_function_calling: true
+    - name: gpt-5.4
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 2.5
+      output_price: 15
+      supports_vision: true
+      supports_function_calling: true
+    - name: gpt-5.4-mini
+      max_input_tokens: 400000
+      max_output_tokens: 128000
+      input_price: 0.75
+      output_price: 4.5
+      supports_vision: true
+      supports_function_calling: true
+    - name: gpt-5.4-nano
+      max_input_tokens: 400000
+      max_output_tokens: 128000
+      input_price: 0.2
+      output_price: 1.25
+      supports_vision: true
+      supports_function_calling: true
+    - name: gpt-5.3-codex
+      max_input_tokens: 400000
+      max_output_tokens: 128000
+      input_price: 1.75
+      output_price: 14
+      supports_function_calling: true
+    - name: o3
+      max_input_tokens: 200000
+      max_output_tokens: 100000
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+    - name: o3-mini
+      max_input_tokens: 200000
+      max_output_tokens: 100000
+      input_price: 1.1
+      output_price: 4.4
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+    - name: o1
+      max_input_tokens: 200000
+      max_output_tokens: 100000
+      input_price: 15
+      output_price: 60
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
     - name: gpt-5.2
       max_input_tokens: 400000
       max_output_tokens: 128000
@@ -84,6 +204,7 @@
       output_price: 0
       supports_vision: true
       supports_function_calling: true
+      reasoning_effort: medium
     - name: gemini-2.5-pro
       max_input_tokens: 1048576
       max_output_tokens: 65536
@@ -91,6 +212,7 @@
       output_price: 0
       supports_vision: true
       supports_function_calling: true
+      reasoning_effort: medium
     - name: gemini-2.5-flash-lite
       max_input_tokens: 1000000
       max_output_tokens: 64000
@@ -137,6 +259,206 @@
 #  - https://docs.anthropic.com/en/api/messages
 - provider: claude
   models:
+    - name: claude-fable-5.1
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 10
+      output_price: 50
+      supports_vision: true
+      supports_function_calling: true
+    - name: claude-fable-5.1:thinking
+      real_name: claude-fable-5.1
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 10
+      output_price: 50
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+          top_p: null
+          thinking:
+            type: enabled
+            budget_tokens: 16000
+    - name: claude-fable-5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 10
+      output_price: 50
+      supports_vision: true
+      supports_function_calling: true
+    - name: claude-fable-5:thinking
+      real_name: claude-fable-5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 10
+      output_price: 50
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+          top_p: null
+          thinking:
+            type: enabled
+            budget_tokens: 16000
+    - name: claude-opus-5.5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 4
+      output_price: 20
+      supports_vision: true
+      supports_function_calling: true
+    - name: claude-opus-5.5:thinking
+      real_name: claude-opus-5.5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 4
+      output_price: 20
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+          top_p: null
+          thinking:
+            type: enabled
+            budget_tokens: 16000
+    - name: claude-opus-5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 5
+      output_price: 25
+      supports_vision: true
+      supports_function_calling: true
+    - name: claude-opus-5:thinking
+      real_name: claude-opus-5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 5
+      output_price: 25
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+          top_p: null
+          thinking:
+            type: enabled
+            budget_tokens: 16000
+    - name: claude-sonnet-5.5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+    - name: claude-sonnet-5.5:thinking
+      real_name: claude-sonnet-5.5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+          top_p: null
+          thinking:
+            type: enabled
+            budget_tokens: 16000
+    - name: claude-sonnet-5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+    - name: claude-sonnet-5:thinking
+      real_name: claude-sonnet-5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+          top_p: null
+          thinking:
+            type: enabled
+            budget_tokens: 16000
+    - name: claude-opus-4.8
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 5
+      output_price: 25
+      supports_vision: true
+      supports_function_calling: true
+    - name: claude-opus-4.8:thinking
+      real_name: claude-opus-4.8
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 5
+      output_price: 25
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+          top_p: null
+          thinking:
+            type: enabled
+            budget_tokens: 16000
+    - name: claude-opus-4.7
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 5
+      output_price: 25
+      supports_vision: true
+      supports_function_calling: true
+    - name: claude-opus-4.7:thinking
+      real_name: claude-opus-4.7
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 5
+      output_price: 25
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+          top_p: null
+          thinking:
+            type: enabled
+            budget_tokens: 16000
     - name: claude-opus-4-6
       max_input_tokens: 200000
       max_output_tokens: 8192
@@ -1212,6 +1534,126 @@
 #  - https://openrouter.ai/docs/api-reference/chat-completion
 - provider: openrouter
   models:
+    - name: openai/gpt-6.1-sol
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: openai/gpt-6-astra
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 10
+      output_price: 50
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: openai/gpt-6-sol
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: openai/gpt-6-luna
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 0.1
+      output_price: 0.5
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: openai/gpt-5.6-sol
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: openai/gpt-5.6-luna
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 0.2
+      output_price: 1.2
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: openai/gpt-5.6-terra
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 2
+      output_price: 12
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+    - name: openai/gpt-5.5
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 5
+      output_price: 30
+      supports_vision: true
+      supports_function_calling: true
+    - name: openai/gpt-5.4
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 2.5
+      output_price: 15
+      supports_vision: true
+      supports_function_calling: true
+    - name: openai/gpt-5.4-mini
+      max_input_tokens: 400000
+      max_output_tokens: 128000
+      input_price: 0.75
+      output_price: 4.5
+      supports_vision: true
+      supports_function_calling: true
+    - name: openai/gpt-5.4-nano
+      max_input_tokens: 400000
+      max_output_tokens: 128000
+      input_price: 0.2
+      output_price: 1.25
+      supports_vision: true
+      supports_function_calling: true
+    - name: openai/gpt-5.3-codex
+      max_input_tokens: 400000
+      max_output_tokens: 128000
+      input_price: 1.75
+      output_price: 14
+      supports_function_calling: true
+    - name: openai/o3
+      max_input_tokens: 200000
+      max_output_tokens: 100000
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+    - name: openai/o3-mini
+      max_input_tokens: 200000
+      max_output_tokens: 100000
+      input_price: 1.1
+      output_price: 4.4
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
+    - name: openai/o1
+      max_input_tokens: 200000
+      max_output_tokens: 100000
+      input_price: 15
+      output_price: 60
+      supports_vision: true
+      supports_function_calling: true
+      reasoning_effort: medium
+      patch:
+        body:
+          temperature: null
     - name: openai/gpt-5.2
       max_input_tokens: 400000
       max_output_tokens: 128000
@@ -1296,6 +1738,70 @@
       max_input_tokens: 131072
       input_price: 0.1
       output_price: 0.2
+    - name: anthropic/claude-fable-5.1
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 10
+      output_price: 50
+      supports_vision: true
+      supports_function_calling: true
+    - name: anthropic/claude-fable-5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 10
+      output_price: 50
+      supports_vision: true
+      supports_function_calling: true
+    - name: anthropic/claude-opus-5.5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 4
+      output_price: 20
+      supports_vision: true
+      supports_function_calling: true
+    - name: anthropic/claude-opus-5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 5
+      output_price: 25
+      supports_vision: true
+      supports_function_calling: true
+    - name: anthropic/claude-sonnet-5.5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+    - name: anthropic/claude-sonnet-5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 2
+      output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+    - name: anthropic/claude-opus-4.8
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 5
+      output_price: 25
+      supports_vision: true
+      supports_function_calling: true
+    - name: anthropic/claude-opus-4.7
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 5
+      output_price: 25
+      supports_vision: true
+      supports_function_calling: true
     - name: anthropic/claude-opus-4.6
       max_input_tokens: 200000
       max_output_tokens: 8192

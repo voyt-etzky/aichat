@@ -74,7 +74,7 @@ impl Role {
             ..Default::default()
         };
         if !metadata.is_empty() {
-            if let Ok(value) = serde_yaml::from_str::<Value>(metadata) {
+            if let Ok(value) = serde_yml::from_str::<Value>(metadata) {
                 if let Some(value) = value.as_object() {
                     for (key, value) in value {
                         match key.as_str() {
@@ -94,7 +94,7 @@ impl Role {
     pub fn builtin(name: &str) -> Result<Self> {
         let content = RolesAsset::get(&format!("{name}.md"))
             .ok_or_else(|| anyhow!("Unknown role `{name}`"))?;
-        let content = unsafe { std::str::from_utf8_unchecked(&content.data) };
+        let content = std::str::from_utf8(&content.data)?;
         Ok(Role::new(name, content))
     }
 

@@ -1,7 +1,8 @@
 # ---- llm ----
-model: openai:gpt-4o             # Specify the LLM to use
+model: openai:gpt-6-sol          # Specify the LLM to use
 temperature: null                # Set default temperature parameter (0, 1)
 top_p: null                      # Set default top-p parameter, with a range of (0, 1) or (0, 2) depending on the model
+reasoning_effort: null           # Set default reasoning effort (low, medium, high)
 
 # ---- behavior ----
 stream: true                     # Controls whether to use the stream-style API.
@@ -175,7 +176,7 @@ clients:
 
   # See https://docs.ai21.com/docs/quickstart
   - type: openai-compatible
-    name: ai12
+    name: ai21
     api_base: https://api.ai21.com/studio/v1
     api_key: xxx
 
@@ -288,6 +289,10 @@ clients:
     name: openrouter
     api_base: https://openrouter.ai/api/v1
     api_key: xxx
+    # models:
+    #   - name: openai/gpt-6-sol
+    #   - name: anthropic/claude-sonnet-5.5
+    #   - name: anthropic/claude-fable-5.1
 
   # See https://github.com/marketplace/models
   - type: openai-compatible

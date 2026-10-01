@@ -73,7 +73,7 @@ async fn markdown_stream_inner(
     let mut buffer = String::new();
     let mut buffer_rows = 1;
 
-    let columns = terminal::size()?.0;
+    let mut columns = terminal::size()?.0.max(1);
 
     let mut spinner = Some(spawn_spinner("Generating"));
 
@@ -85,6 +85,8 @@ async fn markdown_stream_inner(
             if let Some(spinner) = spinner.take() {
                 spinner.stop();
             }
+
+            columns = terminal::size().map(|(w, _)| w).unwrap_or(columns).max(1);
 
             match reply_event {
                 SseEvent::Text(mut text) => {
@@ -101,7 +103,8 @@ async fn markdown_stream_inner(
                     };
 
                     // Fix unexpected duplicate lines on kitty, see https://github.com/sigoden/aichat/issues/105
-                    if col == 0 && row > 0 && display_width(&buffer) == columns as usize {
+                    let stripped_buffer = strip_ansi_escapes::strip_str(&buffer);
+                    if col == 0 && row > 0 && display_width(&stripped_buffer) == columns as usize {
                         row -= 1;
                     }
 
@@ -198,7 +201,7 @@ fn print_block(writer: &mut Stdout, text: &str, columns: u16) -> Result<u16> {
             style::Print("\n"),
             cursor::MoveLeft(columns),
         )?;
-        num += 1;
+        num += need_rows(line, columns);
     }
     Ok(num)
 }
@@ -212,6 +215,26 @@ fn split_line_tail(text: &str) -> (&str, &str) {
 }
 
 fn need_rows(text: &str, columns: u16) -> u16 {
-    let buffer_width = display_width(text).max(1) as u16;
+    let columns = columns.max(1);
+    let stripped = strip_ansi_escapes::strip_str(text);
+    let buffer_width = display_width(&stripped).max(1) as u16;
     buffer_width.div_ceil(columns)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_need_rows_ansi_escapes() {
+        let plain = "hello world";
+        let colored = "\x1b[31mhello \x1b[32mworld\x1b[0m";
+        assert_eq!(need_rows(plain, 80), 1);
+        assert_eq!(need_rows(colored, 80), 1);
+
+        let long_plain = "a".repeat(100);
+        let long_colored = format!("\x1b[34m{}\x1b[0m", "a".repeat(100));
+        assert_eq!(need_rows(&long_plain, 80), 2);
+        assert_eq!(need_rows(&long_colored, 80), 2);
+    }
 }

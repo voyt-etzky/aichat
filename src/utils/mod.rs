@@ -27,8 +27,8 @@ pub use self::variables::*;
 use anyhow::{Context, Result};
 use fancy_regex::Regex;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
-use is_terminal::IsTerminal;
 use std::borrow::Cow;
+use std::io::IsTerminal;
 use std::sync::LazyLock;
 use std::{env, path::PathBuf, process};
 use unicode_segmentation::UnicodeSegmentation;
@@ -120,7 +120,7 @@ where
             Some((v, score))
         })
         .collect();
-    list.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+    list.sort_unstable_by_key(|a| std::cmp::Reverse(a.1));
     list.into_iter().map(|(v, _)| v).collect()
 }
 
