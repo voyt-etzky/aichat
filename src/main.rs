@@ -34,7 +34,19 @@ use std::{env, process, sync::Arc};
 #[tokio::main]
 async fn main() -> Result<()> {
     load_env_file()?;
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    let is_aiq = env::args()
+        .next()
+        .and_then(|p| {
+            std::path::Path::new(&p)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+        })
+        .map(|s| s.eq_ignore_ascii_case("aiq"))
+        .unwrap_or(false);
+    if is_aiq && cli.role.is_none() {
+        cli.role = Some("quick".to_string());
+    }
     let text = cli.text()?;
     let working_mode = if cli.serve.is_some() {
         WorkingMode::Serve

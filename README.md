@@ -16,6 +16,63 @@ AIChat is an all-in-one LLM CLI tool featuring Shell Assistant, CMD & REPL Mode,
 - **Windows Scoop Users:** `scoop install aichat`
 - **Android Termux Users:** `pkg install aichat`
 
+### Build from Source & Direct Setup
+
+Kompilacja i instalacja ze źródeł zapewnia dostęp do najnowszych modeli (2026), obsługi `reasoning_effort` oraz predefiniowanego polecenia `aiq` (odpowiedzi w spartańskim stylu, rola `quick`).
+
+#### Ubuntu / Debian (x86_64 & AArch64)
+
+1. **Wymagania:**
+   ```bash
+   sudo apt update && sudo apt install -y build-essential pkg-config libssl-dev git curl
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+   source "$HOME/.cargo/env"
+   ```
+
+2. **Pobranie i instalacja:**
+   ```bash
+   git clone https://github.com/voyt-etzky/aichat.git
+   cd aichat
+   cargo install --path .
+   ```
+   Polecenie `cargo install --path .` automatycznie kompiluje i instaluje **oba** narzędzia: `aichat` oraz `aiq` do katalogu `~/.cargo/bin/`.
+
+3. **Aby działało od strzała z każdego terminala (`aichat` oraz `aiq`):**
+   Upewnij się, że `~/.cargo/bin` jest w zmiennej `$PATH`:
+   ```bash
+   # Dodaj do ~/.bashrc jeśli jeszcze nie masz:
+   echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+   source ~/.bashrc
+
+   # Opcjonalnie: instalacja globalna dla całego systemu:
+   sudo cp ~/.cargo/bin/aichat ~/.cargo/bin/aiq /usr/local/bin/
+   ```
+
+#### Windows (x86_64)
+
+1. **Wymagania:**
+   - Zainstaluj Rust i narzędzia C++: pobierz i uruchom instalator ze strony [rustup.rs](https://rustup.rs) (wybierz domyślną instalację z *Visual Studio C++ Build Tools*).
+   - Git for Windows: [git-scm.com](https://git-scm.com).
+
+2. **Pobranie i instalacja (w PowerShell):**
+   ```powershell
+   git clone https://github.com/voyt-etzky/aichat.git
+   cd aichat
+   cargo install --path .
+   ```
+   Kompilator wygeneruje i zainstaluje pliki `aichat.exe` oraz `aiq.exe` do katalogu `%USERPROFILE%\.cargo\bin`.
+
+3. **Aby działało od strzała w PowerShell / CMD:**
+   Instalator Rust zazwyczaj automatycznie konfiguruje zmienną `PATH`. Po zakończeniu instalacji zrestartuj terminal (PowerShell) i wpisz:
+   ```powershell
+   aichat --version
+   aiq "Podaj stolicę Francji"
+   ```
+   *Jeśli katalog nie został automatycznie wykryty, dodaj go jednorazowo w PowerShell:*
+   ```powershell
+   [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:USERPROFILE\.cargo\bin", "User")
+   ```
+
 ### Pre-built Binaries
 
 Download pre-built binaries for macOS, Linux, and Windows from [GitHub Releases](https://github.com/sigoden/aichat/releases), extract them, and add the `aichat` binary to your `$PATH`.
