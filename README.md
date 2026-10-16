@@ -110,7 +110,44 @@ Download pre-built binaries for macOS, Linux, and Windows from [GitHub Releases]
 
 ### Temperatura i wybór providera w `aiq`
 
-`aiq` uruchamia `aichat` z rolą `quick`. Temperatura z konfiguracji, roli lub sesji
+`aiq` uruchamia `aichat` z rolą `quick`. Wbudowana rola domyślnie używa modelu
+`openai:gpt-6.1-sol`, czyli providera OpenAI. Temperaturę i model można zmieniać
+po kompilacji; ustawienia są wczytywane przy uruchomieniu programu.
+
+Aby ustawić własne domyślne parametry tylko dla `aiq`, utwórz plik `quick.md`
+w katalogu ról. Domyślne lokalizacje to:
+
+- Linux: `~/.config/aichat/roles/quick.md`
+- Windows: `%APPDATA%\aichat\roles\quick.md`
+
+Dokładną lokalizację pokaże `aichat --info` w polu `roles_dir`; można ją nadpisać
+zmiennymi `AICHAT_CONFIG_DIR` lub `AICHAT_ROLES_DIR`. Jeśli katalog `roles` nie
+istnieje, utwórz go. Przykładowa zawartość pliku:
+
+```markdown
+---
+model: openai:gpt-6.1-sol
+---
+Odpowiadaj krótko i precyzyjnie, bez wstępów i zakończeń.
+```
+
+Własny plik zastępuje wbudowaną rolę `quick`, więc powinien zawierać również
+instrukcję stylu odpowiedzi. Aby użyć OpenRoutera, zmień wpis na
+`model: openrouter:openai/gpt-6.1-sol`; odpowiedni klient musi być skonfigurowany
+w `config.yaml`. Zmiana zadziała przy następnym uruchomieniu `aiq`, bez kompilacji.
+Flagą `-m` można nadpisać model dla pojedynczego wywołania:
+
+```sh
+aiq -m openai:gpt-6-luna "Podaj stolicę Francji"
+```
+
+Główne ustawienia aplikacji znajdują się w `config.yaml` (pole `config_file`
+w `aichat --info`). Model przypisany do roli `quick` ma pierwszeństwo przed
+modelem z tego pliku. Aktualizacja programu zachowuje własny plik roli.
+Edycja `assets/roles/quick.md` w repozytorium zmienia natomiast wbudowany domyślny
+wariant i wymaga ponownej kompilacji oraz instalacji programu.
+
+Temperatura z konfiguracji, roli lub sesji
 (np. `0.3`) jest automatycznie pomijana w żądaniach do modeli GPT-5 i nowszych,
 gdy model korzysta z rozumowania. Tak samo pomijany jest `top_p`. Dotyczy to
 zarówno OpenAI, jak i OpenRoutera, również przy nadpisaniach `patch`.
