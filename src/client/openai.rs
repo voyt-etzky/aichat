@@ -354,6 +354,35 @@ pub fn openai_build_embeddings_body(data: &EmbeddingsData, model: &Model) -> Val
     })
 }
 
+pub fn openai_sanitize_chat_completions_body(body: &mut Value, model: &Model) {
+    if body.get("messages").is_none() {
+        return;
+    }
+    let model = Model::new(
+        model.client_name(),
+        body["model"].as_str().unwrap_or(model.real_name()),
+    );
+    let Some((major, minor)) = model.gpt_version() else {
+        return;
+    };
+    if major < 5 {
+        return;
+    }
+
+    // GPT-5 requires default sampling. Later GPT generations allow sampling
+    // only with reasoning explicitly disabled; omission keeps API defaults.
+    let reasoning_effort = body["reasoning_effort"]
+        .as_str()
+        .or_else(|| body["reasoning"]["effort"].as_str());
+    if (major, minor) >= (5, 1) && reasoning_effort == Some("none") {
+        return;
+    }
+    if let Some(body) = body.as_object_mut() {
+        body.remove("temperature");
+        body.remove("top_p");
+    }
+}
+
 pub fn openai_extract_chat_completions(data: &Value) -> Result<ChatCompletionsOutput> {
     let text = data["choices"][0]["message"]["content"]
         .as_str()
@@ -414,6 +443,161 @@ fn normalize_function_id(value: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::Config;
+    use parking_lot::RwLock;
+    use std::sync::Arc;
+
+    fn sampling_request_body(
+        model: Model,
+        stream: bool,
+        reasoning_effort: Option<&str>,
+        patch: Option<RequestPatch>,
+    ) -> Value {
+        let client = OpenAIClient {
+            global_config: Arc::new(RwLock::new(Config::default())),
+            config: OpenAIConfig {
+                patch,
+                ..Default::default()
+            },
+            model,
+        };
+        let data = ChatCompletionsData {
+            messages: vec![Message::new(
+                MessageRole::User,
+                MessageContent::Text("hi".into()),
+            )],
+            temperature: Some(0.3),
+            top_p: Some(0.8),
+            functions: None,
+            stream,
+            reasoning_effort: reasoning_effort
+                .and_then(|v| client.model.normalize_reasoning_effort(v.into())),
+        };
+        let body = openai_build_chat_completions_body(data, &client.model);
+        let request = client
+            .request_builder(
+                &reqwest::Client::new(),
+                RequestData::new("http://localhost/chat/completions", body),
+            )
+            .build()
+            .unwrap();
+        serde_json::from_slice(request.body().unwrap().as_bytes().unwrap()).unwrap()
+    }
+
+    #[test]
+    fn test_reasoning_models_omit_sampling_in_final_requests() {
+        for name in [
+            "gpt-5",
+            "gpt-5-mini",
+            "gpt-5-nano-2025-08-07",
+            "gpt-5.1",
+            "gpt-5.4-mini",
+            "gpt-5.6-sol",
+            "gpt-6",
+            "gpt-6-sol",
+            "gpt-6.1-sol",
+            "gpt-6-astra",
+            "gpt-7",
+            "openai/gpt-5",
+            "openai/gpt-5:online",
+            "openai/gpt-6-sol",
+            "openai/gpt-6-sol:extended",
+            "openai/gpt-6:extended",
+        ] {
+            for stream in [false, true] {
+                for effort in [None, Some("medium"), Some("high")] {
+                    let body = sampling_request_body(
+                        Model::new("test", name),
+                        stream,
+                        effort,
+                        None,
+                    );
+                    assert!(body.get("temperature").is_none(), "{name}: {body}");
+                    assert!(body.get("top_p").is_none(), "{name}: {body}");
+                    assert_eq!(body["model"], name);
+                    assert_eq!(body["messages"][0]["content"], "hi");
+                    assert_eq!(body.get("stream"), stream.then_some(&Value::Bool(true)));
+                    assert_eq!(body["reasoning_effort"].as_str(), effort);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_sampling_is_preserved_when_supported() {
+        for (name, effort) in [
+            ("gpt-4o", None),
+            ("gpt-4.1", Some("off")),
+            ("deepseek-chat", None),
+            ("claude-sonnet-5.5", Some("none")),
+            ("gpt-5.1", Some("none")),
+            ("gpt-5.4", Some("NONE")),
+            ("gpt-6-sol", Some("none")),
+            ("openai/gpt-6-luna", Some("none")),
+        ] {
+            let body = sampling_request_body(Model::new("test", name), false, effort, None);
+            assert_eq!(body["temperature"], 0.3, "{name}: {body}");
+            assert_eq!(body["top_p"], 0.8, "{name}: {body}");
+            if effort.is_some_and(|v| v.eq_ignore_ascii_case("none"))
+                && name.contains("gpt-")
+            {
+                assert_eq!(body["reasoning_effort"], "none");
+            } else {
+                assert!(body.get("reasoning_effort").is_none());
+            }
+        }
+        let body = sampling_request_body(Model::new("test", "gpt-5"), false, Some("none"), None);
+        assert!(body.get("temperature").is_none());
+        assert!(body.get("top_p").is_none());
+        assert!(body.get("reasoning_effort").is_none());
+    }
+
+    #[test]
+    fn test_sampling_validation_uses_real_name_and_final_patches() {
+        let mut model = Model::new("openrouter", "my-alias");
+        model.data_mut().real_name = Some("openai/gpt-6-sol".into());
+        model.data_mut().patch = Some(json!({"body": {
+            "temperature": 0.2,
+            "top_p": 0.9,
+            "reasoning_effort": "high"
+        }}));
+        let body = sampling_request_body(model.clone(), true, Some("none"), None);
+        assert_eq!(body["model"], "openai/gpt-6-sol");
+        assert_eq!(body["reasoning_effort"], "high");
+        assert!(body.get("temperature").is_none());
+        assert!(body.get("top_p").is_none());
+
+        let patch = serde_json::from_value(json!({"chat_completions": {
+            "my-alias": {"body": {"reasoning_effort": "none", "temperature": 0.4}}
+        }}))
+        .unwrap();
+        let body = sampling_request_body(model.clone(), false, Some("high"), Some(patch));
+        assert_eq!(body["reasoning_effort"], "none");
+        assert_eq!(body["temperature"], 0.4);
+        assert_eq!(body["top_p"], 0.9);
+
+        let patch = serde_json::from_value(json!({"chat_completions": {
+            "my-alias": {"body": {"temperature": 0.1, "top_p": 0.5}}
+        }}))
+        .unwrap();
+        let body = sampling_request_body(model, false, None, Some(patch));
+        assert!(body.get("temperature").is_none());
+        assert!(body.get("top_p").is_none());
+    }
+
+    #[test]
+    fn test_sampling_validation_does_not_inject_parameters_or_change_embeddings() {
+        let model = Model::new("openai", "gpt-6-sol");
+        let mut body = json!({"model": "gpt-6-sol", "messages": [], "stream": true});
+        let original = body.clone();
+        openai_sanitize_chat_completions_body(&mut body, &model);
+        assert_eq!(body, original);
+
+        let mut body = json!({"model": "gpt-6-sol", "input": ["hello"]});
+        let original = body.clone();
+        openai_sanitize_chat_completions_body(&mut body, &model);
+        assert_eq!(body, original);
+    }
 
     #[test]
     fn test_openai_reasoning_effort_in_body() {

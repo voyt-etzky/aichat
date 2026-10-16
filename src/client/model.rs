@@ -108,6 +108,26 @@ impl Model {
         self.data.real_name.as_deref().unwrap_or(&self.data.name)
     }
 
+    pub fn gpt_version(&self) -> Option<(u32, u32)> {
+        // Gateways such as OpenRouter prefix model names with "openai/".
+        let name = self.real_name().rsplit('/').next()?.split(':').next()?;
+        let version = name.strip_prefix("gpt-")?.split('-').next()?;
+        let (major, minor) = version.split_once('.').unwrap_or((version, "0"));
+        Some((major.parse().ok()?, minor.parse().ok()?))
+    }
+
+    pub fn normalize_reasoning_effort(&self, effort: String) -> Option<String> {
+        match effort.to_lowercase().as_str() {
+            "off" | "null" | "" => None,
+            // For GPT-5.1+, "none" is an API value, not an instruction to omit it.
+            "none" if self.gpt_version().is_some_and(|version| version >= (5, 1)) => {
+                Some("none".into())
+            }
+            "none" => None,
+            _ => Some(effort),
+        }
+    }
+
     pub fn model_type(&self) -> ModelType {
         if self.data.model_type.starts_with("embed") {
             ModelType::Embedding

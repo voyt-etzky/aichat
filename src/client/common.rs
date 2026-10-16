@@ -154,6 +154,8 @@ pub trait Client: Sync + Send {
         mut request_data: RequestData,
     ) -> RequestBuilder {
         self.patch_request_data(&mut request_data);
+        // Validate the final body, including model and provider request patches.
+        openai::openai_sanitize_chat_completions_body(&mut request_data.body, self.model());
         request_data.into_builder(client)
     }
 

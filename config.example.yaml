@@ -1,8 +1,8 @@
 # ---- llm ----
 model: openai:gpt-6-sol          # Specify the LLM to use
-temperature: null                # Set default temperature parameter (0, 1)
-top_p: null                      # Set default top-p parameter, with a range of (0, 1) or (0, 2) depending on the model
-reasoning_effort: null           # Set default reasoning effort (low, medium, high)
+temperature: null                # Default temperature; omitted for GPT-5+ reasoning (API default)
+top_p: null                      # Default top-p; omitted for GPT-5+ reasoning
+reasoning_effort: null           # Default reasoning effort (none, low, medium, high); none is sent explicitly for GPT-5.1+
 
 # ---- behavior ----
 stream: true                     # Controls whether to use the stream-style API.

@@ -316,7 +316,7 @@ impl Server {
         let reasoning_effort = reasoning_effort
             .or_else(|| config.read().reasoning_effort.clone())
             .or_else(|| client.model().reasoning_effort())
-            .filter(|v| !matches!(v.to_lowercase().as_str(), "none" | "off" | "null" | ""));
+            .and_then(|v| client.model().normalize_reasoning_effort(v));
         let data: ChatCompletionsData = ChatCompletionsData {
             messages,
             temperature,

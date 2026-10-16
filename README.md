@@ -33,9 +33,9 @@ Kompilacja i instalacja ze źródeł zapewnia dostęp do najnowszych modeli (202
    ```bash
    git clone https://github.com/voyt-etzky/aichat.git
    cd aichat
-   cargo install --path .
+   cargo install --path . --force --locked
    ```
-   Polecenie `cargo install --path .` automatycznie kompiluje i instaluje **oba** narzędzia: `aichat` oraz `aiq` do katalogu `~/.cargo/bin/`.
+   Polecenie `cargo install --path . --force --locked` kompiluje i instaluje **oba** narzędzia: `aichat` oraz `aiq` do katalogu `~/.cargo/bin/`. Zastępuje też starszą instalację.
 
 3. **Aby działało od strzała z każdego terminala (`aichat` oraz `aiq`):**
    Upewnij się, że `~/.cargo/bin` jest w zmiennej `$PATH`:
@@ -58,7 +58,7 @@ Kompilacja i instalacja ze źródeł zapewnia dostęp do najnowszych modeli (202
    ```powershell
    git clone https://github.com/voyt-etzky/aichat.git
    cd aichat
-   cargo install --path .
+   cargo install --path . --force --locked
    ```
    Kompilator wygeneruje i zainstaluje pliki `aichat.exe` oraz `aiq.exe` do katalogu `%USERPROFILE%\.cargo\bin`.
 
@@ -73,9 +73,97 @@ Kompilacja i instalacja ze źródeł zapewnia dostęp do najnowszych modeli (202
    [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:USERPROFILE\.cargo\bin", "User")
    ```
 
+#### Aktualizacja istniejącej instalacji (Windows i Linux)
+
+Jeśli masz już sklonowane repozytorium, w jego katalogu wykonaj:
+
+```sh
+git pull --ff-only
+cargo install --path . --force --locked
+```
+
+`git clone` i `git pull` pobierają kod. `cargo install` kompiluje go w trybie
+release i instaluje oba polecenia w katalogu Cargo. Samo `cargo build` nie
+aktualizuje programów dostępnych w `PATH`. Konfiguracja aplikacji i klucze API
+pozostają w dotychczasowych lokalizacjach.
+
+Sprawdź, skąd system uruchamia programy:
+
+```powershell
+# Windows / PowerShell
+Get-Command aichat, aiq | Select-Object Name, Source
+```
+
+```bash
+# Linux
+command -v aichat aiq
+```
+
+Jeśli na Linuxie wcześniej skopiowano programy do `/usr/local/bin`, odśwież także
+te kopie poleceniem `sudo cp ~/.cargo/bin/aichat ~/.cargo/bin/aiq /usr/local/bin/`.
+Na Windows starsze pliki `.exe` w katalogu bieżącym lub wcześniejszym wpisie
+`PATH` również mogą przesłaniać nową instalację w `%USERPROFILE%\.cargo\bin`.
+
 ### Pre-built Binaries
 
 Download pre-built binaries for macOS, Linux, and Windows from [GitHub Releases](https://github.com/sigoden/aichat/releases), extract them, and add the `aichat` binary to your `$PATH`.
+
+### Temperatura i wybór providera w `aiq`
+
+`aiq` uruchamia `aichat` z rolą `quick`. Temperatura z konfiguracji, roli lub sesji
+(np. `0.3`) jest automatycznie pomijana w żądaniach do modeli GPT-5 i nowszych,
+gdy model korzysta z rozumowania. Tak samo pomijany jest `top_p`. Dotyczy to
+zarówno OpenAI, jak i OpenRoutera, również przy nadpisaniach `patch`.
+Nie trzeba zmieniać temperatury roli `quick` dla pozostałych modeli.
+
+Nie wszystkie nowsze modele wymagają temperatury `1`: modele obsługujące
+`reasoning_effort: none` mogą przyjmować własną temperaturę przy jawnym wyłączeniu
+rozumowania. Aplikacja zachowuje te parametry dla GPT-5.1 i nowszych przy `none`;
+dla pierwotnego GPT-5 (także mini i nano) zawsze je pomija.
+Zobacz [zgodność parametrów w dokumentacji OpenAI](https://developers.openai.com/api/docs/guides/latest-model).
+
+Aby sprawdzić model domyślny i ustawienia roli `quick`, uruchom w PowerShell:
+
+```powershell
+aichat --info
+aiq --info
+```
+
+Pole `model` ma postać `nazwa_klienta:nazwa_modelu`. Jeśli `aiq --info` nie pokazuje
+pola `model`, rola dziedziczy model domyślny. Przy standardowej konfiguracji:
+
+| Wartość `model` | Droga żądania |
+| --- | --- |
+| `openai:gpt-6-sol` | Klient OpenAI, domyślnie `https://api.openai.com/v1` |
+| `openrouter:openai/gpt-6-sol` | Klient OpenRouter, domyślnie `https://openrouter.ai/api/v1` |
+
+Liczy się nazwa klienta przed dwukropkiem. `openai/` po dwukropku to część nazwy
+modelu w OpenRouterze. Rola `quick`, sesja, prelude lub flaga `-m` mogą zmienić wybór modelu.
+Możesz go wymusić dla pojedynczego polecenia:
+
+```powershell
+aiq -m openai:gpt-6-sol "Podaj stolicę Francji"
+aiq -m openrouter:openai/gpt-6-sol "Podaj stolicę Francji"
+```
+
+Nazwy klientów są konfigurowalne. Sprawdź również `api_base` właściwego wpisu
+w `clients` w pliku `config.yaml` oraz zmienne `OPENAI_API_BASE` i
+`OPENROUTER_API_BASE`, które mają pierwszeństwo przed plikiem. Lokalizację
+konfiguracji pokaże `aichat --info` (pole `config_file`); na Windows domyślnie jest
+to `%APPDATA%\aichat\config.yaml`.
+
+Aby potwierdzić faktyczny adres żądania, włącz na jedno wywołanie log diagnostyczny:
+
+```powershell
+$env:AICHAT_LOG_LEVEL = "debug"
+$env:AICHAT_LOG_PATH = "$PWD\aiq-debug.log"
+aiq "Odpowiedz jednym słowem: OK"
+Select-String -Path .\aiq-debug.log -Pattern 'Request https?://'
+Remove-Item Env:AICHAT_LOG_LEVEL, Env:AICHAT_LOG_PATH
+```
+
+Wiersz `Request https://.../chat/completions` pokazuje adres, pod który aplikacja
+wysłała żądanie. Log zawiera także treść rozmowy, więc nie udostępniaj go w całości.
 
 ## Features
 
