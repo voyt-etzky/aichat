@@ -275,6 +275,7 @@ impl Server {
             max_tokens,
             stream,
             tools,
+            reasoning_effort,
         } = req_body;
 
         let mut messages =
@@ -312,7 +313,10 @@ impl Server {
 
         patch_messages(&mut messages, client.model());
 
-        let reasoning_effort = client.model().reasoning_effort();
+        let reasoning_effort = reasoning_effort
+            .or_else(|| config.read().reasoning_effort.clone())
+            .or_else(|| client.model().reasoning_effort())
+            .filter(|v| !matches!(v.to_lowercase().as_str(), "none" | "off" | "null" | ""));
         let data: ChatCompletionsData = ChatCompletionsData {
             messages,
             temperature,
@@ -594,6 +598,7 @@ struct ChatCompletionsReqBody {
     #[serde(default)]
     stream: bool,
     tools: Option<Vec<Value>>,
+    reasoning_effort: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

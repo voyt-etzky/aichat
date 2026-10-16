@@ -53,6 +53,16 @@ fn prepare_chat_completions(
         if let Some(top_p) = obj.remove("top_p") {
             obj.insert("p".to_string(), top_p);
         }
+        if let Some(effort) = obj
+            .remove("reasoning_effort")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+        {
+            let mut thinking = json!({ "type": "enabled" });
+            if let Ok(budget) = effort.parse::<u32>() {
+                thinking["token_budget"] = budget.into();
+            }
+            obj.insert("thinking".to_string(), thinking);
+        }
     }
 
     let mut request_data = RequestData::new(url, body);

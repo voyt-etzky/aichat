@@ -1832,6 +1832,7 @@ impl Config {
             let candidates = match args[0] {
                 "reasoning_effort" => vec![
                     "null".to_string(),
+                    "off".to_string(),
                     "low".to_string(),
                     "medium".to_string(),
                     "high".to_string(),

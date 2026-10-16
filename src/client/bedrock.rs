@@ -325,7 +325,7 @@ fn build_chat_completions_body(data: ChatCompletionsData, model: &Model) -> Resu
         top_p,
         functions,
         stream: _,
-        reasoning_effort: _,
+        reasoning_effort,
     } = data;
 
     let system_message = extract_system_message(&mut messages);
@@ -455,6 +455,22 @@ fn build_chat_completions_body(data: ChatCompletionsData, model: &Model) -> Resu
     }
     if let Some(v) = top_p {
         body["inferenceConfig"]["topP"] = v.into();
+    }
+    if let Some(effort) = reasoning_effort {
+        let budget = match effort.to_lowercase().as_str() {
+            "low" => 4000,
+            "medium" => 16000,
+            "high" => 32000,
+            s => s.parse::<u32>().unwrap_or(16000),
+        };
+        body["additionalModelRequestFields"]["thinking"] = json!({
+            "type": "enabled",
+            "budget_tokens": budget,
+        });
+        if let Some(inference_config) = body["inferenceConfig"].as_object_mut() {
+            inference_config.remove("temperature");
+            inference_config.remove("topP");
+        }
     }
     if let Some(functions) = functions {
         let tools: Vec<_> = functions

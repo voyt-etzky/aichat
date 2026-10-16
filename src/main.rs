@@ -37,16 +37,23 @@ use std::{env, process, sync::Arc};
 async fn main() -> Result<()> {
     load_env_file()?;
     let mut cli = Cli::parse();
-    let is_aiq = env::args()
-        .next()
-        .and_then(|p| {
-            std::path::Path::new(&p)
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string())
-        })
-        .map(|s| s.eq_ignore_ascii_case("aiq"))
-        .unwrap_or(false);
-    if is_aiq && cli.role.is_none() {
+    let is_aiq = env::var_os("AICHAT_IS_AIQ").is_some()
+        || env::args()
+            .next()
+            .and_then(|p| {
+                std::path::Path::new(&p)
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().to_string())
+            })
+            .map(|s| s.eq_ignore_ascii_case("aiq"))
+            .unwrap_or(false);
+    if is_aiq
+        && cli.role.is_none()
+        && cli.prompt.is_none()
+        && cli.agent.is_none()
+        && !cli.execute
+        && !cli.code
+    {
         cli.role = Some("quick".to_string());
     }
     let text = cli.text()?;

@@ -324,16 +324,18 @@ pub fn gemini_build_chat_completions_body(
     let system_message = extract_system_message(&mut messages);
 
     let mut network_image_urls = vec![];
+    let messages_len = messages.len();
     let contents: Vec<Value> = messages
         .into_iter()
-        .flat_map(|message| {
+        .enumerate()
+        .flat_map(|(i, message)| {
             let Message { role, content } = message;
             let role = match role {
                 MessageRole::User => "user",
                 _ => "model",
             };
                match content {
-                    MessageContent::Text(text) if role == "model" => vec![json!({
+                    MessageContent::Text(text) if role == "model" && i != messages_len - 1 => vec![json!({
                         "role": role,
                         "parts": [{ "text": strip_think_tag(&text) }]
                     })],

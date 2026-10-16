@@ -159,8 +159,22 @@ pub trait Client: Sync + Send {
 
     fn patch_request_data(&self, request_data: &mut RequestData) {
         let model_type = self.model().model_type();
-        if let Some(patch) = self.model().patch() {
-            request_data.apply_patch(patch.clone());
+        if let Some(mut patch) = self.model().patch().cloned() {
+            if request_data.body.get("thinking").is_some() {
+                if let Some(body) = patch["body"].as_object_mut() {
+                    body.remove("thinking");
+                }
+            }
+            if request_data.body["additionalModelRequestFields"]
+                .get("thinking")
+                .is_some()
+            {
+                if let Some(fields) = patch["body"]["additionalModelRequestFields"].as_object_mut()
+                {
+                    fields.remove("thinking");
+                }
+            }
+            request_data.apply_patch(patch);
         }
 
         let patch_map = std::env::var(get_env_name(&format!(

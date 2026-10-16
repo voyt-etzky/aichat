@@ -118,13 +118,16 @@ jobs:
         dist_dir=`pwd`/dist
         name=$bin-$version-$target
         executable=target/$target/release/$bin
+        aiq_executable=target/$target/release/aiq
 
         if [[ "$RUNNER_OS" == "Windows" ]]; then
           executable=$executable.exe
+          aiq_executable=$aiq_executable.exe
         fi
 
         mkdir $dist_dir
         cp $executable $dist_dir
+        cp $aiq_executable $dist_dir
         cd $dist_dir
 
         if [[ "$RUNNER_OS" == "Windows" ]]; then

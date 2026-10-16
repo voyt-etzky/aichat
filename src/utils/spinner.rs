@@ -2,9 +2,11 @@ use super::{poll_abort_signal, wait_abort_signal, AbortSignal, IS_STDOUT_TERMINA
 
 use anyhow::{bail, Result};
 use crossterm::{cursor, queue, style, terminal};
+use parking_lot::Mutex;
 use std::{
     future::Future,
     io::{stdout, Write},
+    sync::Arc,
     time::Duration,
 };
 use tokio::{
@@ -19,13 +21,14 @@ use tokio::{
 pub struct SpinnerInner {
     index: usize,
     message: String,
+    stopped: bool,
 }
 
 impl SpinnerInner {
     const DATA: [&'static str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
     fn step(&mut self) -> Result<()> {
-        if !*IS_STDOUT_TERMINAL || self.message.is_empty() {
+        if !*IS_STDOUT_TERMINAL || self.stopped || self.message.is_empty() {
             return Ok(());
         }
         let mut writer = stdout();
@@ -64,28 +67,42 @@ impl SpinnerInner {
         writer.flush()?;
         Ok(())
     }
+
+    fn stop(&mut self) -> Result<()> {
+        self.stopped = true;
+        self.clear_message()
+    }
 }
 
 #[derive(Clone)]
-pub struct Spinner(mpsc::UnboundedSender<SpinnerEvent>);
+pub struct Spinner {
+    tx: mpsc::UnboundedSender<SpinnerEvent>,
+    inner: Arc<Mutex<SpinnerInner>>,
+}
 
 impl Spinner {
     pub fn create(message: &str) -> (Self, UnboundedReceiver<SpinnerEvent>) {
         let (tx, spinner_rx) = mpsc::unbounded_channel();
-        let spinner = Spinner(tx);
-        let _ = spinner.set_message(message.to_string());
+        let mut inner = SpinnerInner::default();
+        if !message.is_empty() {
+            inner.message = format!(" {message}");
+        }
+        let _ = tx.send(SpinnerEvent::SetMessage(message.to_string()));
+        let spinner = Spinner {
+            tx,
+            inner: Arc::new(Mutex::new(inner)),
+        };
         (spinner, spinner_rx)
     }
 
     pub fn set_message(&self, message: String) -> Result<()> {
-        self.0.send(SpinnerEvent::SetMessage(message))?;
-        std::thread::sleep(Duration::from_millis(10));
+        self.tx.send(SpinnerEvent::SetMessage(message))?;
         Ok(())
     }
 
     pub fn stop(&self) {
-        let _ = self.0.send(SpinnerEvent::Stop);
-        std::thread::sleep(Duration::from_millis(10));
+        let _ = self.inner.lock().stop();
+        let _ = self.tx.send(SpinnerEvent::Stop);
     }
 }
 
@@ -96,27 +113,33 @@ pub enum SpinnerEvent {
 
 pub fn spawn_spinner(message: &str) -> Spinner {
     let (spinner, mut spinner_rx) = Spinner::create(message);
+    let inner = spinner.inner.clone();
     tokio::spawn(async move {
-        let mut spinner = SpinnerInner::default();
         let mut interval = interval(Duration::from_millis(50));
         loop {
             tokio::select! {
+                biased;
                 evt = spinner_rx.recv() => {
-                    if let Some(evt) = evt {
-                        match evt {
-                            SpinnerEvent::SetMessage(message) => {
-                                spinner.set_message(message)?;
-                            }
-                            SpinnerEvent::Stop => {
-                                spinner.clear_message()?;
+                    match evt {
+                        Some(SpinnerEvent::SetMessage(message)) => {
+                            let mut guard = inner.lock();
+                            if guard.stopped {
                                 break;
                             }
+                            guard.set_message(message)?;
                         }
-
+                        Some(SpinnerEvent::Stop) | None => {
+                            inner.lock().stop()?;
+                            break;
+                        }
                     }
                 }
                 _ = interval.tick() => {
-                    let _ = spinner.step();
+                    let mut guard = inner.lock();
+                    if guard.stopped {
+                        break;
+                    }
+                    let _ = guard.step();
                 }
             }
         }

@@ -245,7 +245,8 @@ impl Input {
             .read()
             .reasoning_effort
             .clone()
-            .or_else(|| model.reasoning_effort());
+            .or_else(|| model.reasoning_effort())
+            .filter(|v| !matches!(v.to_lowercase().as_str(), "none" | "off" | "null" | ""));
         Ok(ChatCompletionsData {
             messages,
             temperature,
