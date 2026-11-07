@@ -156,6 +156,10 @@ macro_rules! client_common_fns {
             Self::name(&self.config)
         }
 
+        fn client_type(&self) -> &str {
+            Self::NAME
+        }
+
         fn model(&self) -> &Model {
             &self.model
         }
@@ -184,7 +188,7 @@ macro_rules! impl_client_trait {
                 data: $crate::client::ChatCompletionsData,
             ) -> anyhow::Result<$crate::client::ChatCompletionsOutput> {
                 let request_data = $prepare_chat_completions(self, data)?;
-                let builder = self.request_builder(client, request_data);
+                let builder = self.request_builder(client, request_data)?;
                 $chat_completions(builder, self.model()).await
             }
 
@@ -195,7 +199,7 @@ macro_rules! impl_client_trait {
                 data: $crate::client::ChatCompletionsData,
             ) -> Result<()> {
                 let request_data = $prepare_chat_completions(self, data)?;
-                let builder = self.request_builder(client, request_data);
+                let builder = self.request_builder(client, request_data)?;
                 $chat_completions_streaming(builder, handler, self.model()).await
             }
 
@@ -205,7 +209,7 @@ macro_rules! impl_client_trait {
                 data: &$crate::client::EmbeddingsData,
             ) -> Result<$crate::client::EmbeddingsOutput> {
                 let request_data = $prepare_embeddings(self, data)?;
-                let builder = self.request_builder(client, request_data);
+                let builder = self.request_builder(client, request_data)?;
                 $embeddings(builder, self.model()).await
             }
 
@@ -215,7 +219,7 @@ macro_rules! impl_client_trait {
                 data: &$crate::client::RerankData,
             ) -> Result<$crate::client::RerankOutput> {
                 let request_data = $prepare_rerank(self, data)?;
-                let builder = self.request_builder(client, request_data);
+                let builder = self.request_builder(client, request_data)?;
                 $rerank(builder, self.model()).await
             }
         }

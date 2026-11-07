@@ -11,8 +11,8 @@ pub use self::role::{
 use self::session::Session;
 
 use crate::client::{
-    create_client_config, list_client_types, list_models, ClientConfig, MessageContentToolCalls,
-    Model, ModelType, ProviderModels, OPENAI_COMPATIBLE_PROVIDERS,
+    create_client_config, list_client_names, list_client_types, list_models, ClientConfig,
+    MessageContentToolCalls, Model, ModelType, ProviderModels, OPENAI_COMPATIBLE_PROVIDERS,
 };
 use crate::function::{FunctionDeclaration, Functions, ToolResult};
 use crate::rag::Rag;
@@ -940,8 +940,12 @@ impl Config {
     }
 
     pub fn retrieve_role(&self, name: &str) -> Result<Role> {
-        let names = Self::list_roles(false);
-        let mut role = if names.contains(&name.to_string()) {
+        self.retrieve_role_with_model(name, None)
+    }
+
+    pub fn retrieve_role_with_model(&self, name: &str, model_id: Option<&str>) -> Result<Role> {
+        let custom_role = Self::list_roles(false).iter().any(|role| role == name);
+        let mut role = if custom_role {
             let path = Self::role_file(name);
             let content = read_to_string(&path)?;
             Role::new(name, &content)
@@ -949,23 +953,25 @@ impl Config {
             Role::builtin(name)?
         };
         let current_model = self.current_model().clone();
-        match role.model_id() {
-            Some(model_id) => {
-                if current_model.id() != model_id {
-                    let model = Model::retrieve_model(self, model_id, ModelType::Chat)?;
-                    role.set_model(model);
-                } else {
-                    role.set_model(current_model);
-                }
+        let role_model_id = role.model_id().filter(|_| {
+            custom_role
+                || name != "quick"
+                || list_client_names(self).iter().any(|name| *name == "openai")
+        });
+        let inherits_settings = role_model_id.is_none();
+        let model = match model_id.or(role_model_id) {
+            Some(id) if id != current_model.id() => {
+                Model::retrieve_model(self, id, ModelType::Chat)?
             }
-            None => {
-                role.set_model(current_model);
-                if role.temperature().is_none() {
-                    role.set_temperature(self.temperature);
-                }
-                if role.top_p().is_none() {
-                    role.set_top_p(self.top_p);
-                }
+            _ => current_model,
+        };
+        role.set_model(model);
+        if inherits_settings {
+            if role.temperature().is_none() {
+                role.set_temperature(self.temperature);
+            }
+            if role.top_p().is_none() {
+                role.set_top_p(self.top_p);
             }
         }
         Ok(role)
@@ -1833,9 +1839,13 @@ impl Config {
                 "reasoning_effort" => vec![
                     "null".to_string(),
                     "off".to_string(),
+                    "none".to_string(),
+                    "minimal".to_string(),
                     "low".to_string(),
                     "medium".to_string(),
                     "high".to_string(),
+                    "xhigh".to_string(),
+                    "max".to_string(),
                 ],
                 "max_output_tokens" => match self.current_model().max_output_tokens() {
                     Some(v) => vec![v.to_string()],

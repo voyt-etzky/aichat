@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
     load_env_file()?;
     let mut cli = Cli::parse();
     let is_aiq = env::var_os("AICHAT_IS_AIQ").is_some()
-        || env::args()
+        || env::args_os()
             .next()
             .and_then(|p| {
                 std::path::Path::new(&p)
@@ -51,6 +51,7 @@ async fn main() -> Result<()> {
         && cli.role.is_none()
         && cli.prompt.is_none()
         && cli.agent.is_none()
+        && cli.serve.is_none()
         && !cli.execute
         && !cli.code
     {
@@ -141,7 +142,9 @@ async fn run(config: GlobalConfig, cli: Cli, text: Option<String>) -> Result<()>
         if let Some(prompt) = &cli.prompt {
             config.write().use_prompt(prompt)?;
         } else if let Some(name) = &cli.role {
-            config.write().use_role(name)?;
+            let mut config = config.write();
+            let role = config.retrieve_role_with_model(name, cli.model.as_deref())?;
+            config.use_role_obj(role)?;
         } else if cli.execute {
             config.write().use_role(SHELL_ROLE)?;
         } else if cli.code {

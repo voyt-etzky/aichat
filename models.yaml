@@ -9,7 +9,13 @@
       input_price: 2
       output_price: 10
       supports_vision: true
-      supports_function_calling: true
+      reasoning_effort: medium
+    - name: gpt-6.1-terra
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 1
+      output_price: 5
+      supports_vision: true
       reasoning_effort: medium
     - name: gpt-6-astra
       max_input_tokens: 1050000
@@ -17,7 +23,6 @@
       input_price: 10
       output_price: 50
       supports_vision: true
-      supports_function_calling: true
       reasoning_effort: medium
     - name: gpt-6-sol
       max_input_tokens: 1050000
@@ -260,6 +265,7 @@
 - provider: claude
   models:
     - name: claude-fable-5.1
+      real_name: claude-fable-5-1
       max_input_tokens: 1000000
       max_output_tokens: 128000
       require_max_tokens: true
@@ -268,7 +274,7 @@
       supports_vision: true
       supports_function_calling: true
     - name: claude-fable-5.1:thinking
-      real_name: claude-fable-5.1
+      real_name: claude-fable-5-1
       max_input_tokens: 1000000
       max_output_tokens: 128000
       require_max_tokens: true
@@ -277,13 +283,6 @@
       supports_vision: true
       supports_function_calling: true
       reasoning_effort: medium
-      patch:
-        body:
-          temperature: null
-          top_p: null
-          thinking:
-            type: enabled
-            budget_tokens: 16000
     - name: claude-fable-5
       max_input_tokens: 1000000
       max_output_tokens: 128000
@@ -302,14 +301,8 @@
       supports_vision: true
       supports_function_calling: true
       reasoning_effort: medium
-      patch:
-        body:
-          temperature: null
-          top_p: null
-          thinking:
-            type: enabled
-            budget_tokens: 16000
     - name: claude-opus-5.5
+      real_name: claude-opus-5-5
       max_input_tokens: 1000000
       max_output_tokens: 128000
       require_max_tokens: true
@@ -318,7 +311,7 @@
       supports_vision: true
       supports_function_calling: true
     - name: claude-opus-5.5:thinking
-      real_name: claude-opus-5.5
+      real_name: claude-opus-5-5
       max_input_tokens: 1000000
       max_output_tokens: 128000
       require_max_tokens: true
@@ -327,13 +320,6 @@
       supports_vision: true
       supports_function_calling: true
       reasoning_effort: medium
-      patch:
-        body:
-          temperature: null
-          top_p: null
-          thinking:
-            type: enabled
-            budget_tokens: 16000
     - name: claude-opus-5
       max_input_tokens: 1000000
       max_output_tokens: 128000
@@ -352,14 +338,8 @@
       supports_vision: true
       supports_function_calling: true
       reasoning_effort: medium
-      patch:
-        body:
-          temperature: null
-          top_p: null
-          thinking:
-            type: enabled
-            budget_tokens: 16000
     - name: claude-sonnet-5.5
+      real_name: claude-sonnet-5-5
       max_input_tokens: 1000000
       max_output_tokens: 128000
       require_max_tokens: true
@@ -368,7 +348,7 @@
       supports_vision: true
       supports_function_calling: true
     - name: claude-sonnet-5.5:thinking
-      real_name: claude-sonnet-5.5
+      real_name: claude-sonnet-5-5
       max_input_tokens: 1000000
       max_output_tokens: 128000
       require_max_tokens: true
@@ -377,13 +357,6 @@
       supports_vision: true
       supports_function_calling: true
       reasoning_effort: medium
-      patch:
-        body:
-          temperature: null
-          top_p: null
-          thinking:
-            type: enabled
-            budget_tokens: 16000
     - name: claude-sonnet-5
       max_input_tokens: 1000000
       max_output_tokens: 128000
@@ -402,14 +375,17 @@
       supports_vision: true
       supports_function_calling: true
       reasoning_effort: medium
-      patch:
-        body:
-          temperature: null
-          top_p: null
-          thinking:
-            type: enabled
-            budget_tokens: 16000
+    - name: claude-haiku-5.5
+      real_name: claude-haiku-5-5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      require_max_tokens: true
+      input_price: 0.1
+      output_price: 0.5
+      supports_vision: true
+      supports_function_calling: true
     - name: claude-opus-4.8
+      real_name: claude-opus-4-8
       max_input_tokens: 1000000
       max_output_tokens: 128000
       require_max_tokens: true
@@ -418,7 +394,7 @@
       supports_vision: true
       supports_function_calling: true
     - name: claude-opus-4.8:thinking
-      real_name: claude-opus-4.8
+      real_name: claude-opus-4-8
       max_input_tokens: 1000000
       max_output_tokens: 128000
       require_max_tokens: true
@@ -427,14 +403,8 @@
       supports_vision: true
       supports_function_calling: true
       reasoning_effort: medium
-      patch:
-        body:
-          temperature: null
-          top_p: null
-          thinking:
-            type: enabled
-            budget_tokens: 16000
     - name: claude-opus-4.7
+      real_name: claude-opus-4-7
       max_input_tokens: 1000000
       max_output_tokens: 128000
       require_max_tokens: true
@@ -443,7 +413,7 @@
       supports_vision: true
       supports_function_calling: true
     - name: claude-opus-4.7:thinking
-      real_name: claude-opus-4.7
+      real_name: claude-opus-4-7
       max_input_tokens: 1000000
       max_output_tokens: 128000
       require_max_tokens: true
@@ -452,13 +422,6 @@
       supports_vision: true
       supports_function_calling: true
       reasoning_effort: medium
-      patch:
-        body:
-          temperature: null
-          top_p: null
-          thinking:
-            type: enabled
-            budget_tokens: 16000
     - name: claude-opus-4-6
       max_input_tokens: 200000
       max_output_tokens: 8192
@@ -1542,6 +1505,13 @@
       supports_vision: true
       supports_function_calling: true
       reasoning_effort: medium
+    - name: openai/gpt-6.1-terra
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+      input_price: 1
+      output_price: 5
+      supports_vision: true
+      reasoning_effort: medium
     - name: openai/gpt-6-astra
       max_input_tokens: 1050000
       max_output_tokens: 128000
@@ -1776,6 +1746,13 @@
       require_max_tokens: true
       input_price: 2
       output_price: 10
+      supports_vision: true
+      supports_function_calling: true
+    - name: anthropic/claude-haiku-5.5
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+      input_price: 0.1
+      output_price: 0.5
       supports_vision: true
       supports_function_calling: true
     - name: anthropic/claude-sonnet-5

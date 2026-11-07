@@ -16,6 +16,7 @@ use tokio::{
     },
     time::interval,
 };
+use unicode_width::UnicodeWidthStr;
 
 #[derive(Debug, Default)]
 pub struct SpinnerInner {
@@ -35,6 +36,9 @@ impl SpinnerInner {
         let frame = Self::DATA[self.index % Self::DATA.len()];
         let dots = ".".repeat((self.index / 5) % 4);
         let line = format!("{frame}{}{:<3}", self.message, dots);
+        if !terminal::size().is_ok_and(|(columns, _)| line.width() < columns as usize) {
+            return Ok(());
+        }
         queue!(writer, cursor::MoveToColumn(0), style::Print(line),)?;
         if self.index == 0 {
             queue!(writer, cursor::Hide)?;
@@ -53,10 +57,11 @@ impl SpinnerInner {
     }
 
     fn clear_message(&mut self) -> Result<()> {
-        if !*IS_STDOUT_TERMINAL || self.message.is_empty() {
+        self.message.clear();
+        if self.index == 0 {
             return Ok(());
         }
-        self.message.clear();
+        self.index = 0;
         let mut writer = stdout();
         queue!(
             writer,

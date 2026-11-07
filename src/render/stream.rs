@@ -76,6 +76,7 @@ async fn markdown_stream_inner(
     let mut buffer = String::new();
     let mut buffer_rows: u16 = 1;
     let mut last_line_full = false;
+    let mut can_read_cursor = true;
 
     let mut columns = terminal::size()?.0.max(1);
 
@@ -100,19 +101,18 @@ async fn markdown_stream_inner(
                     // tab width hacking
                     text = text.replace('\t', "    ");
 
-                    let mut attempts = 0;
-                    let (col, row) = loop {
-                        match cursor::position() {
-                            Ok(pos) => break pos,
-                            Err(_) if attempts < 3 => attempts += 1,
-                            Err(_) => break (0, 0),
-                        }
-                    };
-
                     let mut up_rows = buffer_rows.saturating_sub(1);
-                    // Fix unexpected duplicate lines on kitty, see https://github.com/sigoden/aichat/issues/105
-                    if last_line_full && col == 0 && row > 0 {
-                        up_rows += 1;
+                    if can_read_cursor && (last_line_full || up_rows > 0) {
+                        match cursor::position() {
+                            Ok((col, row)) => {
+                                // Some terminals advance immediately at the right margin.
+                                if last_line_full && col == 0 && row > 0 {
+                                    up_rows = up_rows.saturating_add(1);
+                                }
+                                up_rows = up_rows.min(row);
+                            }
+                            Err(_) => can_read_cursor = false,
+                        }
                     }
 
                     if up_rows > 0 {
@@ -125,26 +125,22 @@ async fn markdown_stream_inner(
                         terminal::Clear(terminal::ClearType::FromCursorDown),
                     )?;
 
-                    if text.contains('\n') {
-                        let text = format!("{buffer}{text}");
-                        let (head, tail) = split_line_tail(&text);
+                    buffer.push_str(&text);
+                    if let Some((head, tail)) = buffer.rsplit_once('\n') {
                         let output = render.render(head);
                         print_block(writer, &output, columns)?;
                         buffer = tail.to_string();
-                    } else {
-                        buffer = format!("{buffer}{text}");
                     }
 
                     let output = render.render_line(&buffer);
-                    if output.contains('\n') {
-                        let (head, tail) = split_line_tail(&output);
+                    if let Some((head, tail)) = output.rsplit_once('\n') {
                         buffer_rows = print_block(writer, head, columns)?;
                         queue!(writer, style::Print(tail))?;
 
                         // No guarantee the buffer width of the buffer will not exceed the number of columns.
                         // So we calculate the number of rows needed, rather than setting it directly to 1.
                         let (tail_rows, tail_col) = line_layout(tail, columns);
-                        buffer_rows += tail_rows;
+                        buffer_rows = buffer_rows.saturating_add(tail_rows);
                         last_line_full = tail_col == columns;
                     } else {
                         queue!(writer, style::Print(&output))?;
@@ -200,7 +196,7 @@ async fn gather_events(rx: &mut UnboundedReceiver<SseEvent>) -> Vec<SseEvent> {
 }
 
 fn print_block(writer: &mut Stdout, text: &str, columns: u16) -> Result<u16> {
-    let mut num = 0;
+    let mut num: u16 = 0;
     for line in text.split('\n') {
         queue!(
             writer,
@@ -208,21 +204,9 @@ fn print_block(writer: &mut Stdout, text: &str, columns: u16) -> Result<u16> {
             style::Print("\n"),
             cursor::MoveToColumn(0),
         )?;
-        num += need_rows(line, columns);
+        num = num.saturating_add(need_rows(line, columns));
     }
     Ok(num)
-}
-
-fn split_line_tail(text: &str) -> (&str, &str) {
-    if let Some((head, tail)) = text.rsplit_once('\n') {
-        (head, tail)
-    } else {
-        ("", text)
-    }
-}
-
-fn grapheme_width(grapheme: &str) -> u16 {
-    UnicodeWidthStr::width(grapheme).min(2) as u16
 }
 
 fn line_layout(text: &str, columns: u16) -> (u16, u16) {
@@ -232,18 +216,15 @@ fn line_layout(text: &str, columns: u16) -> (u16, u16) {
     let mut col: u16 = 0;
 
     for grapheme in stripped.graphemes(true) {
-        let width = grapheme_width(grapheme);
-        if width == 0 {
-            continue;
-        }
-        if col + width > columns {
+        let width = UnicodeWidthStr::width(grapheme).min(u16::MAX as usize) as u16;
+        if width > columns - col {
             if col > 0 {
-                rows += 1;
+                rows = rows.saturating_add(1);
                 col = 0;
             }
             if width > columns {
-                rows += width - 1;
-                col = columns;
+                rows = rows.saturating_add((width - 1) / columns);
+                col = (width - 1) % columns + 1;
                 continue;
             }
         }
@@ -289,5 +270,7 @@ mod tests {
         // Exact column boundary detection for 1x and 2x columns
         assert_eq!(line_layout(&"a".repeat(80), 80), (1, 80));
         assert_eq!(line_layout(&"a".repeat(160), 80), (2, 80));
+        assert_eq!(line_layout(&"a".repeat(70_000), u16::MAX), (2, 4465));
+        assert_eq!(line_layout(&"a".repeat(70_000), 1), (u16::MAX, 1));
     }
 }

@@ -53,7 +53,7 @@ pub struct Cli {
     /// Turn off stream mode
     #[clap(short = 'S', long)]
     pub no_stream: bool,
-    /// Set reasoning effort (low, medium, high)
+    /// Set reasoning effort (model-dependent, e.g. low, medium, high, xhigh)
     #[clap(long)]
     pub reasoning_effort: Option<String>,
     /// Display the message without sending it

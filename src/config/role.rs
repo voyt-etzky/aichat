@@ -281,7 +281,7 @@ impl RoleLike for Role {
     }
 
     fn set_model(&mut self, model: Model) {
-        if !self.model().id().is_empty() {
+        if self.model_id.is_some() || !self.model().id().is_empty() {
             self.model_id = Some(model.id().to_string());
         }
         self.model = model;

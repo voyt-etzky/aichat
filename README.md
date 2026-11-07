@@ -10,6 +10,8 @@ AIChat is an all-in-one LLM CLI tool featuring Shell Assistant, CMD & REPL Mode,
 
 ### Package Managers
 
+Te polecenia instalują wersję upstream. Wersję forka z `aiq` zainstalujesz ze źródeł.
+
 - **Rust Developers:** `cargo install aichat`
 - **Homebrew/Linuxbrew Users:** `brew install aichat`
 - **Pacman Users**: `pacman -S aichat`
@@ -106,101 +108,110 @@ Na Windows starsze pliki `.exe` w katalogu bieżącym lub wcześniejszym wpisie
 
 ### Pre-built Binaries
 
-Download pre-built binaries for macOS, Linux, and Windows from [GitHub Releases](https://github.com/sigoden/aichat/releases), extract them, and add the `aichat` binary to your `$PATH`.
+Archiwa z [wydań forka](https://github.com/voyt-etzky/aichat/releases) zawierają
+`aichat` i `aiq`. Rozpakuj oba pliki do tego samego katalogu w `PATH`.
 
-### Temperatura i wybór providera w `aiq`
+## Konfiguracja forka
 
-`aiq` uruchamia `aichat` z rolą `quick`. Wbudowana rola domyślnie używa modelu
-`openai:gpt-6.1-sol`, czyli providera OpenAI. Temperaturę i model można zmieniać
-po kompilacji; ustawienia są wczytywane przy uruchomieniu programu.
+### Domyślny model aichat
 
-Aby ustawić własne domyślne parametry tylko dla `aiq`, utwórz plik `quick.md`
-w katalogu ról. Domyślne lokalizacje to:
+Uruchom `aichat --info` i otwórz plik wskazany w polu `config_file`. Domyślnie
+jest to `~/.config/aichat/config.yaml` na Linuxie lub
+`%APPDATA%\aichat\config.yaml` na Windows. Ustaw pole `model` na początku pliku.
+Poniższy przykład ustawia GPT‑6.1 Sol przez OpenRouter.
 
-- Linux: `~/.config/aichat/roles/quick.md`
-- Windows: `%APPDATA%\aichat\roles\quick.md`
+```yaml
+model: openrouter:openai/gpt-6.1-sol
+clients:
+  - type: openai-compatible
+    name: openrouter
+  - type: openai
+```
 
-Dokładną lokalizację pokaże `aichat --info` w polu `roles_dir`; można ją nadpisać
-zmiennymi `AICHAT_CONFIG_DIR` lub `AICHAT_ROLES_DIR`. Jeśli katalog `roles` nie
-istnieje, utwórz go. Przykładowa zawartość pliku:
+Wystarczą wpisy w `clients` dla używanych dostawców. Klienci odczytują klucze
+odpowiednio z `OPENROUTER_API_KEY` i `OPENAI_API_KEY`. Aby wybrać bezpośrednie
+API OpenAI, ustaw `model: openai:gpt-6.1-sol`.
+
+`aichat --list-models` pokazuje modele dostępne dla skonfigurowanych klientów.
+`AICHAT_MODEL` nadpisuje domyślny model z pliku dla danego środowiska, a `-m`
+wybiera model na pojedyncze wywołanie.
+
+```sh
+aichat -m openrouter:openai/gpt-6-luna "Podaj stolicę Francji"
+```
+
+W REPL możesz przełączyć model poleceniem `.model openai:gpt-6-luna`.
+Aktywna rola lub zapisana sesja może mieć przypisany własny model.
+
+### Tryb quick (aiq)
+
+`aiq` uruchamia `aichat` z rolą `quick`. Możesz też wybrać ją poleceniem
+`aichat -r quick`. Rola prosi o krótką odpowiedź bez wstępu i zakończenia.
+Wbudowana rola wybiera `openai:gpt-6.1-sol`, gdy klient `openai` jest
+skonfigurowany. Przy konfiguracji bez tego klienta korzysta z domyślnego
+modelu aplikacji.
+
+```sh
+aiq "Podaj stolicę Francji"
+aiq -m openrouter:openai/gpt-6-luna "Podaj stolicę Francji"
+aiq --info
+```
+
+Aby ustawić inny model na stałe tylko dla `aiq`, utwórz `quick.md` w katalogu
+`roles_dir` pokazanym przez `aichat --info` (domyślnie obok `config.yaml` w
+podkatalogu `roles`). Plik zawiera ustawienia roli i jej instrukcję.
 
 ```markdown
 ---
-model: openai:gpt-6.1-sol
+model: openrouter:openai/gpt-6.1-sol
 ---
 Odpowiadaj krótko i precyzyjnie, bez wstępów i zakończeń.
 ```
 
-Własny plik zastępuje wbudowaną rolę `quick`, więc powinien zawierać również
-instrukcję stylu odpowiedzi. Aby użyć OpenRoutera, zmień wpis na
-`model: openrouter:openai/gpt-6.1-sol`; odpowiedni klient musi być skonfigurowany
-w `config.yaml`. Zmiana zadziała przy następnym uruchomieniu `aiq`, bez kompilacji.
-Flagą `-m` można nadpisać model dla pojedynczego wywołania:
+Możesz pominąć nagłówek YAML, aby własna rola `quick` dziedziczyła model
+domyślny. Zmiana pliku działa od następnego uruchomienia. `aiq --info`
+pokazuje ustawienia roli, a `aichat --info` pokazuje konfigurację aplikacji.
+Możesz zmienić katalog konfiguracji przez `AICHAT_CONFIG_DIR`, a katalog ról
+przez `AICHAT_ROLES_DIR`.
+
+### Poziom rozumowania
+
+Ustaw `reasoning_effort` w `config.yaml`, użyj `AICHAT_REASONING_EFFORT` lub
+podaj flagę `--reasoning-effort`. Flaga ma pierwszeństwo przed zmienną
+środowiskową, konfiguracją i domyślnym poziomem modelu. W REPL polecenie
+`.set reasoning_effort high` zmienia poziom, a `.set reasoning_effort null`
+przywraca ustawienie modelu.
 
 ```sh
-aiq -m openai:gpt-6-luna "Podaj stolicę Francji"
+aiq --reasoning-effort low "Podaj stolicę Francji"
 ```
 
-Główne ustawienia aplikacji znajdują się w `config.yaml` (pole `config_file`
-w `aichat --info`). Model przypisany do roli `quick` ma pierwszeństwo przed
-modelem z tego pliku. Aktualizacja programu zachowuje własny plik roli.
-Edycja `assets/roles/quick.md` w repozytorium zmienia natomiast wbudowany domyślny
-wariant i wymaga ponownej kompilacji oraz instalacji programu.
+Obsługiwane wartości zależą od modelu. Przykładowo GPT‑6.1 Sol obsługuje
+`low`, `medium`, `high`, `xhigh` i `max`. `off` pomija poziom z konfiguracji
+i katalogu w żądaniu. `none` wyłącza rozumowanie w modelach, które to
+obsługują, np. GPT‑6 Luna. Przy aktywnym rozumowaniu aplikacja pomija parametry
+próbkowania dla GPT‑5 i nowszych. GPT‑6 Astra, GPT‑6.1 Sol i GPT‑6.1 Terra
+w bezpośrednim API OpenAI wymagają Responses API do wywoływania narzędzi.
+AIChat używa Chat Completions. [Dokumentacja OpenAI](https://developers.openai.com/api/docs/guides/latest-model)
 
-Temperatura z konfiguracji, roli lub sesji
-(np. `0.3`) jest automatycznie pomijana w żądaniach do modeli GPT-5 i nowszych,
-gdy model korzysta z rozumowania. Tak samo pomijany jest `top_p`. Dotyczy to
-zarówno OpenAI, jak i OpenRoutera, również przy nadpisaniach `patch`.
-Nie trzeba zmieniać temperatury roli `quick` dla pozostałych modeli.
+### Sprawdzenie dostawcy
 
-Nie wszystkie nowsze modele wymagają temperatury `1`: modele obsługujące
-`reasoning_effort: none` mogą przyjmować własną temperaturę przy jawnym wyłączeniu
-rozumowania. Aplikacja zachowuje te parametry dla GPT-5.1 i nowszych przy `none`;
-dla pierwotnego GPT-5 (także mini i nano) zawsze je pomija.
-Zobacz [zgodność parametrów w dokumentacji OpenAI](https://developers.openai.com/api/docs/guides/latest-model).
+Nazwa przed dwukropkiem wskazuje wpis w `clients`. Dla OpenRoutera `openai/`
+po dwukropku jest częścią nazwy modelu. Jeśli ustawiasz własny adres API,
+sprawdź `api_base` oraz zmienne `OPENAI_API_BASE` i `OPENROUTER_API_BASE`,
+które mają pierwszeństwo przed wpisem w pliku.
 
-Aby sprawdzić model domyślny i ustawienia roli `quick`, uruchom w PowerShell:
-
-```powershell
-aichat --info
-aiq --info
-```
-
-Pole `model` ma postać `nazwa_klienta:nazwa_modelu`. Jeśli `aiq --info` nie pokazuje
-pola `model`, rola dziedziczy model domyślny. Przy standardowej konfiguracji:
-
-| Wartość `model` | Droga żądania |
-| --- | --- |
-| `openai:gpt-6-sol` | Klient OpenAI, domyślnie `https://api.openai.com/v1` |
-| `openrouter:openai/gpt-6-sol` | Klient OpenRouter, domyślnie `https://openrouter.ai/api/v1` |
-
-Liczy się nazwa klienta przed dwukropkiem. `openai/` po dwukropku to część nazwy
-modelu w OpenRouterze. Rola `quick`, sesja, prelude lub flaga `-m` mogą zmienić wybór modelu.
-Możesz go wymusić dla pojedynczego polecenia:
-
-```powershell
-aiq -m openai:gpt-6-sol "Podaj stolicę Francji"
-aiq -m openrouter:openai/gpt-6-sol "Podaj stolicę Francji"
-```
-
-Nazwy klientów są konfigurowalne. Sprawdź również `api_base` właściwego wpisu
-w `clients` w pliku `config.yaml` oraz zmienne `OPENAI_API_BASE` i
-`OPENROUTER_API_BASE`, które mają pierwszeństwo przed plikiem. Lokalizację
-konfiguracji pokaże `aichat --info` (pole `config_file`); na Windows domyślnie jest
-to `%APPDATA%\aichat\config.yaml`.
-
-Aby potwierdzić faktyczny adres żądania, włącz na jedno wywołanie log diagnostyczny:
+W PowerShell możesz sprawdzić, dokąd trafi żądanie.
 
 ```powershell
 $env:AICHAT_LOG_LEVEL = "debug"
 $env:AICHAT_LOG_PATH = "$PWD\aiq-debug.log"
-aiq "Odpowiedz jednym słowem: OK"
+aiq "Odpowiedz dokładnie słowem OK."
 Select-String -Path .\aiq-debug.log -Pattern 'Request https?://'
 Remove-Item Env:AICHAT_LOG_LEVEL, Env:AICHAT_LOG_PATH
 ```
 
-Wiersz `Request https://.../chat/completions` pokazuje adres, pod który aplikacja
-wysłała żądanie. Log zawiera także treść rozmowy, więc nie udostępniaj go w całości.
+Log zawiera także treść rozmowy. Udostępniaj tylko potrzebne fragmenty.
 
 ## Features
 

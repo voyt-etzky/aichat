@@ -283,7 +283,19 @@ pub fn claude_build_chat_completions_body(
     if stream {
         body["stream"] = true.into();
     }
-    if let Some(effort) = reasoning_effort {
+    let adaptive_thinking = claude_requires_adaptive_thinking(model.real_name());
+    if adaptive_thinking {
+        if let Some(effort) = &reasoning_effort {
+            if !matches!(effort.as_str(), "low" | "medium" | "high" | "xhigh" | "max") {
+                bail!(
+                    "Model '{}' requires a named reasoning effort (low, medium, high, xhigh or max)",
+                    model.id()
+                );
+            }
+            body["thinking"] = json!({"type": "adaptive"});
+            body["output_config"]["effort"] = effort.as_str().into();
+        }
+    } else if let Some(effort) = &reasoning_effort {
         let budget = match effort.to_lowercase().as_str() {
             "low" => 4000,
             "high" => 32000,
@@ -293,13 +305,15 @@ pub fn claude_build_chat_completions_body(
             "type": "enabled",
             "budget_tokens": budget,
         });
-        if let Some(map) = body.as_object_mut() {
-            map.remove("temperature");
-            map.remove("top_p");
-        }
         let current_max = body.get("max_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
         if current_max <= budget as u64 {
             body["max_tokens"] = ((budget as u64) + 8000).into();
+        }
+    }
+    if adaptive_thinking || reasoning_effort.is_some() {
+        if let Some(map) = body.as_object_mut() {
+            map.remove("temperature");
+            map.remove("top_p");
         }
     }
     if let Some(functions) = functions {
@@ -315,6 +329,17 @@ pub fn claude_build_chat_completions_body(
             .collect();
     }
     Ok(body)
+}
+
+fn claude_requires_adaptive_thinking(name: &str) -> bool {
+    let Some((family, version)) = name.strip_prefix("claude-").and_then(|name| name.split_once('-'))
+    else {
+        return false;
+    };
+    let mut version = version.split(['-', '.', '@']);
+    let major = version.next().and_then(|v| v.parse::<u32>().ok()).unwrap_or_default();
+    let minor = version.next().and_then(|v| v.parse::<u32>().ok()).unwrap_or_default();
+    major >= 5 || (family == "opus" && (major, minor) >= (4, 7))
 }
 
 pub fn claude_extract_chat_completions(data: &Value) -> Result<ChatCompletionsOutput> {
@@ -378,8 +403,7 @@ mod tests {
 
     #[test]
     fn test_claude_reasoning_effort_mapping() {
-        let model = Model::new("claude", "claude-sonnet-5.5");
-        let data = ChatCompletionsData {
+        let data = || ChatCompletionsData {
             messages: vec![Message::new(
                 MessageRole::User,
                 MessageContent::Text("hi".into()),
@@ -390,10 +414,20 @@ mod tests {
             stream: false,
             reasoning_effort: Some("high".to_string()),
         };
-        let body = claude_build_chat_completions_body(data, &model).unwrap();
+        let legacy = Model::new("claude", "claude-sonnet-4-6");
+        let body = claude_build_chat_completions_body(data(), &legacy).unwrap();
         assert_eq!(body["thinking"]["type"], "enabled");
         assert_eq!(body["thinking"]["budget_tokens"], 32000);
         assert!(body.get("temperature").is_none());
         assert!(body.get("top_p").is_none());
+
+        for name in ["claude-sonnet-5-5", "claude-opus-4-7", "claude-fable-5-1"] {
+            let model = Model::new("claude", name);
+            let body = claude_build_chat_completions_body(data(), &model).unwrap();
+            assert_eq!(body["thinking"], json!({"type": "adaptive"}));
+            assert_eq!(body["output_config"]["effort"], "high");
+            assert!(body.get("temperature").is_none());
+            assert!(body.get("top_p").is_none());
+        }
     }
 }

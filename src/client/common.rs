@@ -44,6 +44,8 @@ pub trait Client: Sync + Send {
 
     fn name(&self) -> &str;
 
+    fn client_type(&self) -> &str;
+
     fn model(&self) -> &Model;
 
     fn model_mut(&mut self) -> &mut Model;
@@ -152,11 +154,10 @@ pub trait Client: Sync + Send {
         &self,
         client: &reqwest::Client,
         mut request_data: RequestData,
-    ) -> RequestBuilder {
+    ) -> Result<RequestBuilder> {
         self.patch_request_data(&mut request_data);
-        // Validate the final body, including model and provider request patches.
-        openai::openai_sanitize_chat_completions_body(&mut request_data.body, self.model());
-        request_data.into_builder(client)
+        openai::finalize_chat_request(&mut request_data, self.model(), self.client_type())?;
+        Ok(request_data.into_builder(client))
     }
 
     fn patch_request_data(&self, request_data: &mut RequestData) {

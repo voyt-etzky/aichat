@@ -117,13 +117,17 @@ impl Model {
     }
 
     pub fn normalize_reasoning_effort(&self, effort: String) -> Option<String> {
-        match effort.to_lowercase().as_str() {
+        let normalized = effort.trim().to_ascii_lowercase();
+        match normalized.as_str() {
             "off" | "null" | "" => None,
-            // For GPT-5.1+, "none" is an API value, not an instruction to omit it.
-            "none" if self.gpt_version().is_some_and(|version| version >= (5, 1)) => {
-                Some("none".into())
+            // Some APIs distinguish disabling reasoning from leaving its default.
+            "none"
+                if !self.client_name().starts_with("openrouter")
+                    && !self.gpt_version().is_some_and(|version| version >= (5, 1)) =>
+            {
+                None
             }
-            "none" => None,
+            "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" => Some(normalized),
             _ => Some(effort),
         }
     }

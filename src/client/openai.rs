@@ -126,6 +126,7 @@ pub async fn openai_chat_completions_streaming(
         }
         let data: Value = serde_json::from_str(&message.data)?;
         debug!("stream-data: {data}");
+        check_chat_error(&data)?;
         if let Some(text) = data["choices"][0]["delta"]["content"]
             .as_str()
             .filter(|v| !v.is_empty())
@@ -194,7 +195,13 @@ pub async fn openai_chat_completions_streaming(
         Ok(false)
     };
 
-    sse_stream(builder, handle).await
+    let result = sse_stream(builder, handle).await;
+    if reasoning_state == 1 {
+        let close = handler.text("\n</think>\n");
+        result.and(close)
+    } else {
+        result
+    }
 }
 
 pub async fn openai_embeddings(
@@ -354,7 +361,77 @@ pub fn openai_build_embeddings_body(data: &EmbeddingsData, model: &Model) -> Val
     })
 }
 
-pub fn openai_sanitize_chat_completions_body(body: &mut Value, model: &Model) {
+pub fn finalize_chat_request(
+    request: &mut RequestData,
+    model: &Model,
+    client_type: &str,
+) -> Result<()> {
+    if !matches!(client_type, "openai" | "azure-openai" | "openai-compatible")
+        || request.body.get("messages").is_none()
+    {
+        return Ok(());
+    }
+
+    let body = &mut request.body;
+    let is_openrouter = client_type == "openai-compatible"
+        && (model.client_name() == "openrouter"
+            || reqwest::Url::parse(&request.url)
+                .is_ok_and(|url| url.host_str() == Some("openrouter.ai")));
+    if is_openrouter {
+        let legacy = body.as_object_mut().unwrap().remove("reasoning_effort");
+        if let Some(effort) = legacy {
+            if body["reasoning"].is_null() {
+                body["reasoning"] = json!({"effort": effort});
+            } else if let Some(reasoning) = body["reasoning"].as_object_mut() {
+                if !reasoning.contains_key("max_tokens")
+                    && reasoning.get("enabled") != Some(&Value::Bool(false))
+                {
+                    reasoning.entry("effort").or_insert(effort);
+                }
+            }
+        }
+    }
+
+    if client_type == "openai" || client_type == "azure-openai" {
+        let name = body["model"].as_str().unwrap_or(model.real_name());
+        let effective_model = Model::new(model.client_name(), name);
+        let is_o_series = matches!(name.split('-').next(), Some("o1" | "o3" | "o4"));
+        if is_o_series || effective_model.gpt_version().is_some_and(|(major, _)| major >= 5)
+        {
+            let body = body.as_object_mut().unwrap();
+            if let Some(limit) = body.remove("max_tokens") {
+                body.entry("max_completion_tokens").or_insert(limit);
+            }
+            if is_o_series {
+                body.remove("temperature");
+                body.remove("top_p");
+            }
+        }
+
+        if client_type == "openai" && body["tools"].as_array().is_some_and(|tools| !tools.is_empty()) {
+            let name = effective_model.real_name();
+            let matches_model = |model: &str| {
+                name == model || name.strip_prefix(model).is_some_and(|suffix| suffix.starts_with('-'))
+            };
+            if ["gpt-6-astra", "gpt-6.1-sol", "gpt-6.1-terra"]
+                .into_iter()
+                .any(matches_model)
+            {
+                bail!("Model '{name}' requires the OpenAI Responses API for tool calling");
+            }
+            if (matches_model("gpt-6-sol") || matches_model("gpt-6-luna"))
+                && body["reasoning_effort"] != "none"
+            {
+                bail!("Model '{name}' requires --reasoning-effort none for tool calling with Chat Completions");
+            }
+        }
+    }
+
+    openai_sanitize_chat_completions_body(body, model);
+    Ok(())
+}
+
+fn openai_sanitize_chat_completions_body(body: &mut Value, model: &Model) {
     if body.get("messages").is_none() {
         return;
     }
@@ -380,10 +457,31 @@ pub fn openai_sanitize_chat_completions_body(body: &mut Value, model: &Model) {
     if let Some(body) = body.as_object_mut() {
         body.remove("temperature");
         body.remove("top_p");
+        body.remove("logprobs");
+        body.remove("top_logprobs");
     }
 }
 
+fn check_chat_error(data: &Value) -> Result<()> {
+    let choice = &data["choices"][0];
+    let error = data
+        .get("error")
+        .filter(|v| !v.is_null())
+        .or_else(|| choice.get("error").filter(|v| !v.is_null()));
+    if let Some(error) = error {
+        if let Some(message) = error["message"].as_str().or_else(|| error.as_str()) {
+            bail!("{message}");
+        }
+        bail!("Chat completion failed: {error}");
+    }
+    if choice["finish_reason"] == "error" {
+        bail!("The provider ended the chat completion with an error");
+    }
+    Ok(())
+}
+
 pub fn openai_extract_chat_completions(data: &Value) -> Result<ChatCompletionsOutput> {
+    check_chat_error(data)?;
     let text = data["choices"][0]["message"]["content"]
         .as_str()
         .unwrap_or_default();
@@ -479,6 +577,7 @@ mod tests {
                 &reqwest::Client::new(),
                 RequestData::new("http://localhost/chat/completions", body),
             )
+            .unwrap()
             .build()
             .unwrap();
         serde_json::from_slice(request.body().unwrap().as_bytes().unwrap()).unwrap()
@@ -597,6 +696,42 @@ mod tests {
         let original = body.clone();
         openai_sanitize_chat_completions_body(&mut body, &model);
         assert_eq!(body, original);
+    }
+
+    #[test]
+    fn test_openrouter_reasoning_patch_takes_precedence() {
+        let model = Model::new("openrouter", "openai/gpt-6-sol");
+        let mut request = RequestData::new("https://openrouter.ai/api/v1/chat/completions", json!({
+            "model": model.real_name(),
+            "messages": [],
+            "reasoning_effort": "medium",
+            "reasoning": {"effort": "none", "exclude": true},
+            "temperature": 0.3,
+        }));
+        finalize_chat_request(&mut request, &model, "openai-compatible").unwrap();
+        assert!(request.body.get("reasoning_effort").is_none());
+        assert_eq!(request.body["reasoning"], json!({"effort": "none", "exclude": true}));
+        assert_eq!(request.body["temperature"], 0.3);
+    }
+
+    #[test]
+    fn test_openai_reasoning_token_limit_and_tools() {
+        let model = Model::new("openai", "gpt-6-sol");
+        let mut request = RequestData::new("https://api.openai.com/v1/chat/completions", json!({
+            "model": model.real_name(),
+            "messages": [],
+            "max_tokens": 1024,
+            "tools": [{"type": "function"}],
+            "reasoning_effort": "medium",
+        }));
+        assert!(finalize_chat_request(&mut request, &model, "openai").is_err());
+        request.body["reasoning_effort"] = "none".into();
+        finalize_chat_request(&mut request, &model, "openai").unwrap();
+        assert_eq!(request.body["max_completion_tokens"], 1024);
+        assert!(request.body.get("max_tokens").is_none());
+
+        request.body["model"] = "gpt-6.1-sol".into();
+        assert!(finalize_chat_request(&mut request, &model, "openai").is_err());
     }
 
     #[test]

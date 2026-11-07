@@ -47,7 +47,7 @@ impl Client for VertexAIClient {
         let model = self.model();
         let model_category = ModelCategory::from_str(model.real_name())?;
         let request_data = prepare_chat_completions(self, data, &model_category)?;
-        let builder = self.request_builder(client, request_data);
+        let builder = self.request_builder(client, request_data)?;
         match model_category {
             ModelCategory::Gemini => gemini_chat_completions(builder, model).await,
             ModelCategory::Claude => claude_chat_completions(builder, model).await,
@@ -65,7 +65,7 @@ impl Client for VertexAIClient {
         let model = self.model();
         let model_category = ModelCategory::from_str(model.real_name())?;
         let request_data = prepare_chat_completions(self, data, &model_category)?;
-        let builder = self.request_builder(client, request_data);
+        let builder = self.request_builder(client, request_data)?;
         match model_category {
             ModelCategory::Gemini => {
                 gemini_chat_completions_streaming(builder, handler, model).await
@@ -86,7 +86,7 @@ impl Client for VertexAIClient {
     ) -> Result<Vec<Vec<f32>>> {
         prepare_gcloud_access_token(client, self.name(), &self.config.adc_file).await?;
         let request_data = prepare_embeddings(self, data)?;
-        let builder = self.request_builder(client, request_data);
+        let builder = self.request_builder(client, request_data)?;
         embeddings(builder, self.model()).await
     }
 }
